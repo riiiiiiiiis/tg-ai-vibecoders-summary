@@ -49,7 +49,7 @@ export function TimeSeriesChart({ series, windowLabel }: TimeSeriesChartProps) {
             display: true,
             text: windowLabel,
             color: "#cbd5f5",
-            font: { size: 14, weight: "500" }
+            font: { size: 14, weight: 500 }
           }
         },
         scales: {

@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     const daysParam = Number(searchParams.get("days") ?? "1");
     const days = ALLOWED_WINDOWS.has(daysParam as 1 | 7) ? (daysParam as 1 | 7) : 1;
 
-    const metrics = await fetchOverview({ chatId, days });
+    const metrics = await fetchOverview({ chatId, window: days });
     return NextResponse.json({ ok: true, data: metrics });
   } catch (error) {
     console.error("/api/overview error", error);

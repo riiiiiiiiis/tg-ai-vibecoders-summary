@@ -2,6 +2,7 @@ import { MetricCard } from "@/components/metric-card";
 import { TimeSeriesChart } from "@/components/time-series-chart";
 import { TopUsers } from "@/components/top-users";
 import { AiInsights } from "@/components/ai-insights";
+import { SummaryGenerator } from "@/components/summary-generator";
 import { fetchOverview } from "@/lib/queries";
 import { buildDailyReport } from "@/lib/report";
 
@@ -32,6 +33,8 @@ export default async function Dashboard24h({ searchParams }: PageProps) {
         <TopUsers topUsers={metrics.topUsers} />
         <AiInsights report={report} />
       </div>
+      
+      <SummaryGenerator chatId={chatId} date={isoDate} />
     </section>
   );
 }
