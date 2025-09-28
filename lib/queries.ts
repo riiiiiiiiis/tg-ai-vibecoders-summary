@@ -109,6 +109,43 @@ export async function fetchOverview({ chatId, window = 1, from, to }: OverviewPa
   };
 }
 
+export async function fetchMessagesText({
+  chatId,
+  from,
+  to,
+  limit = 5000
+}: {
+  chatId?: string;
+  from: Date;
+  to: Date;
+  limit?: number;
+}): Promise<string[]> {
+  const pool = getPool();
+  const params: Array<string | Date | number> = [from, to];
+  const where: string[] = [
+    "m.sent_at >= $1",
+    "m.sent_at < $2",
+    "COALESCE(m.text, '') <> ''"
+  ];
+
+  if (chatId) {
+    where.push(`m.chat_id = $${params.length + 1}`);
+    params.push(chatId);
+  }
+
+  const sql = `
+    SELECT m.text
+    FROM messages m
+    WHERE ${where.join(" AND ")}
+    ORDER BY m.sent_at ASC
+    LIMIT $${params.length + 1}
+  `;
+  params.push(limit);
+
+  const { rows } = await pool.query<{ text: string }>(sql, params);
+  return rows.map((r) => r.text);
+}
+
 function inferBucketUnit(from: Date, to: Date): "hour" | "day" {
   const diffMs = to.getTime() - from.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);

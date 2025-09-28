@@ -73,6 +73,71 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
   }
 }
 
+export async function generateReportFromText({
+  date,
+  chatId,
+  metrics,
+  text
+}: {
+  date: string;
+  chatId?: string;
+  metrics: OverviewResponse;
+  text: string;
+}): Promise<ParsedReport | null> {
+  if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
+    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
+  }
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content: "Ты аналитик Telegram-сообщений. Отвечай по-деловому, кратко и на русском. Верни JSON строго по схеме."
+    },
+    {
+      role: "user",
+      content: [
+        `Дата: ${date}`,
+        `Чат: ${chatId ?? "(не указан)"}`,
+        `Всего сообщений: ${metrics.totalMessages}; Уникальные: ${metrics.uniqueUsers}; Со ссылками: ${metrics.linkMessages}`,
+        "Ниже сообщения за день (усечённо):",
+        text
+      ].join("\n")
+    }
+  ];
+
+  try {
+    const raw = await callOpenRouter(messages, {
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: "telegram_report",
+          schema: {
+            type: "object",
+            properties: {
+              summary: { type: "string" },
+              themes: { type: "array", items: { type: "string" }, maxItems: 5 },
+              insights: { type: "array", items: { type: "string" }, maxItems: 5 }
+            },
+            required: ["summary", "themes", "insights"],
+            additionalProperties: false
+          }
+        }
+      }
+    });
+    if (!raw) return null;
+    const json = JSON.parse(raw);
+    const parsed = reportSchema.safeParse(json);
+    if (!parsed.success) {
+      console.error("Failed to parse OpenRouter text-based response", parsed.error);
+      return null;
+    }
+    return parsed.data;
+  } catch (error) {
+    console.error("OpenRouter report-from-text generation failed", error);
+    return null;
+  }
+}
+
 async function callOpenRouter(
   messages: ChatMessage[],
   options?: {

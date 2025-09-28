@@ -1,5 +1,5 @@
-import { generateStructuredReport } from "./ai";
-import { fetchOverview } from "./queries";
+import { generateStructuredReport, generateReportFromText } from "./ai";
+import { fetchOverview, fetchMessagesText } from "./queries";
 import type { OverviewResponse, ReportPayload } from "./types";
 
 type ReportRequest = {
@@ -12,19 +12,24 @@ export async function buildDailyReport({ date, chatId }: ReportRequest): Promise
   const metrics = await fetchOverview({ chatId, from, to });
   
   try {
-    const ai = await generateStructuredReport({ date, chatId, metrics });
-    
-    if (!ai) {
-      return null;
-    }
+    const texts = await fetchMessagesText({ chatId, from, to, limit: 5000 });
+    const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 20000);
+    const blob = texts.join("\n---\n").slice(0, maxChars);
+
+    const fromText = blob
+      ? await generateReportFromText({ date, chatId, metrics, text: blob })
+      : null;
+
+    const use = fromText ?? (await generateStructuredReport({ date, chatId, metrics }));
+    if (!use) return null;
 
     return {
       date,
       chatId,
       metrics,
-      summary: ai.summary,
-      themes: ai.themes,
-      insights: ai.insights
+      summary: use.summary,
+      themes: use.themes,
+      insights: use.insights
     };
   } catch (error) {
     console.error("AI report generation failed:", error);
