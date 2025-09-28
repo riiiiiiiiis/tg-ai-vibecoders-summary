@@ -16,7 +16,7 @@ type ReportArgs = {
 
 export async function generateStructuredReport({ date, chatId, metrics }: ReportArgs): Promise<ParsedReport | null> {
   if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
-    return null;
+    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
   }
 
   const messages: ChatMessage[] = [
@@ -83,6 +83,20 @@ async function callOpenRouter(
   const controller = new AbortController();
   const timeoutMs = Number(process.env.OPENROUTER_TIMEOUT_MS ?? 20000);
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const requestPayload = {
+    model: process.env.OPENROUTER_MODEL,
+    temperature: options?.temperature ?? 0.3,
+    response_format: options?.responseFormat,
+    messages
+  };
+  console.log("[OpenRouter] Request", {
+    endpoint: OPENROUTER_ENDPOINT,
+    model: requestPayload.model,
+    temperature: requestPayload.temperature,
+    messageRoles: messages.map((message) => message.role),
+    timeoutMs
+  });
+  const start = Date.now();
 
   try {
     const res = await fetch(OPENROUTER_ENDPOINT, {
@@ -93,17 +107,19 @@ async function callOpenRouter(
         "HTTP-Referer": "https://telegram-dashboard.local",
         "X-Title": "Telegram Dashboard"
       },
-      body: JSON.stringify({
-        model: process.env.OPENROUTER_MODEL,
-        temperature: options?.temperature ?? 0.3,
-        response_format: options?.responseFormat,
-        messages
-      }),
+      body: JSON.stringify(requestPayload),
       signal: controller.signal
+    });
+    const durationMs = Date.now() - start;
+    console.log("[OpenRouter] Response", {
+      status: res.status,
+      ok: res.ok,
+      durationMs
     });
 
     if (!res.ok) {
-      console.error("OpenRouter error", await res.text());
+      const errorText = await res.text();
+      console.error("OpenRouter error", errorText);
       return null;
     }
 
@@ -113,6 +129,9 @@ async function callOpenRouter(
     const content = data.choices?.[0]?.message?.content;
     return content ?? null;
   } finally {
+    if (controller.signal.aborted) {
+      console.warn("[OpenRouter] Request aborted after", Date.now() - start, "ms");
+    }
     clearTimeout(timeout);
   }
 }
@@ -130,5 +149,5 @@ function buildPrompt({ date, chatId, metrics }: ReportArgs): string {
     ...metrics.series.map((point) => `${point.timestamp}: ${point.messageCount}`)
   ].filter(Boolean);
 
-  return `${lines.join("\n")}\n\nСформируй краткое резюме дня, выдели основные темы и инсайты.`;
+  return `${lines.join("\n")}\n\nСформируй аналитический отчет: кратко опиши характер активности и настроения дня (до трех предложений), сформулируй 2–4 ключевые темы как выводы о динамике или структуре обсуждений и предложи 2–4 инсайта с интерпретацией значимости метрик и рекомендациями. Не повторяй метрики дословно, делай выводы на их основе. Оформляй ответ по-деловому, на русском.`;
 }

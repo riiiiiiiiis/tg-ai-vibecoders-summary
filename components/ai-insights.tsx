@@ -1,10 +1,21 @@
 import type { ReportPayload } from "@/lib/types";
 
 type AiInsightsProps = {
-  report: ReportPayload;
+  report?: ReportPayload | null;
 };
 
 export function AiInsights({ report }: AiInsightsProps) {
+  if (!report) {
+    return (
+      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+        <h2 className="text-sm font-semibold text-slate-200">AI дайджест</h2>
+        <p className="mt-3 text-sm leading-relaxed text-slate-400">
+          Нажмите «Генерировать» ниже, чтобы получить AI-анализ активности.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
       <h2 className="text-sm font-semibold text-slate-200">AI дайджест</h2>

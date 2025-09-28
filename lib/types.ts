@@ -26,4 +26,4 @@ export type ReportPayload = {
   summary: string;
   themes: string[];
   insights: string[];
-};
+} | null;

@@ -10,16 +10,26 @@ type ReportRequest = {
 export async function buildDailyReport({ date, chatId }: ReportRequest): Promise<ReportPayload> {
   const { from, to } = computeDayRange(date);
   const metrics = await fetchOverview({ chatId, from, to });
-  const ai = await generateStructuredReport({ date, chatId, metrics });
+  
+  try {
+    const ai = await generateStructuredReport({ date, chatId, metrics });
+    
+    if (!ai) {
+      return null;
+    }
 
-  return {
-    date,
-    chatId,
-    metrics,
-    summary: ai?.summary ?? fallbackSummary(metrics, date),
-    themes: ai?.themes ?? fallbackThemes(metrics),
-    insights: ai?.insights ?? fallbackInsights(metrics)
-  };
+    return {
+      date,
+      chatId,
+      metrics,
+      summary: ai.summary,
+      themes: ai.themes,
+      insights: ai.insights
+    };
+  } catch (error) {
+    console.error("AI report generation failed:", error);
+    return null;
+  }
 }
 
 function computeDayRange(date: string): { from: Date; to: Date } {
@@ -31,15 +41,4 @@ function computeDayRange(date: string): { from: Date; to: Date } {
   return { from, to };
 }
 
-function fallbackSummary(metrics: OverviewResponse, date: string): string {
-  return `За ${date} отправлено ${metrics.totalMessages} сообщений от ${metrics.uniqueUsers} участников. Ссылок: ${metrics.linkMessages}.`;
-}
 
-function fallbackThemes(metrics: OverviewResponse): string[] {
-  return metrics.topUsers.slice(0, 3).map((user) => `Активность ${user.displayName}`);
-}
-
-function fallbackInsights(metrics: OverviewResponse): string[] {
-  const trend = metrics.series.at(-1)?.messageCount ?? 0;
-  return [`Последний интервал: ${trend} сообщений.`];
-}

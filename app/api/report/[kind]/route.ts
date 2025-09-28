@@ -21,6 +21,13 @@ export async function GET(request: Request, { params }: { params: { kind: string
   try {
     const report = await buildDailyReport({ date, chatId });
 
+    if (!report) {
+      return NextResponse.json({ 
+        ok: false, 
+        error: "AI service temporarily unavailable. Please check your API configuration." 
+      }, { status: 503 });
+    }
+
     if (kind === "insights") {
       return NextResponse.json({ ok: true, data: report.insights });
     }
@@ -39,6 +46,8 @@ export async function GET(request: Request, { params }: { params: { kind: string
     return NextResponse.json({ ok: true, data: report });
   } catch (error) {
     console.error(`/api/report/${kind} error`, error);
-    return NextResponse.json({ ok: false, error: "Failed to build report" }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : "Failed to build report";
+    const statusCode = errorMessage.includes("AI service requires") ? 503 : 500;
+    return NextResponse.json({ ok: false, error: errorMessage }, { status: statusCode });
   }
 }
