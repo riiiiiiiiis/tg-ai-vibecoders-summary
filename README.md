@@ -30,7 +30,6 @@ Next.js 15 App Router application that connects to an existing PostgreSQL databa
 - `npm run build` — build production bundle.
 - `npm run start` — run production server.
 - `npm run lint` — lint via ESLint/Next.
-- `npm run test` — execute Vitest suite.
 
 ## AI Requirements
 This application **requires** AI functionality for insights generation:
@@ -51,9 +50,8 @@ This application **requires** AI functionality for insights generation:
 - `components/` — UI building blocks (cards, charts, AI insights).
 - `lib/` — Database queries, AI integration, report builder, utilities.
 
-## Testing
+## Development
 ```bash
 npm run lint
-npm run test
 ```
-Both commands should pass without additional configuration.
+Linting should pass without additional configuration.

@@ -3,7 +3,7 @@
 ## Core Framework
 - **Next.js 15.0.0-canary.58** (App Router) with React 19 RC
 - **TypeScript 5.5.3** with strict mode enabled
-- **Tailwind CSS 4.0.0-alpha.24** for styling
+- **Custom CSS** for minimal styling
 
 ## Database & APIs
 - **PostgreSQL** via `pg` driver (v8.12.0) with connection pooling

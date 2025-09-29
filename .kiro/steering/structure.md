@@ -9,7 +9,7 @@
 │   │   └── report/        # AI report generation endpoints
 │   │       └── [kind]/    # Dynamic route for report types (generate, insights, preview)
 │   ├── week/              # 7-day analytics page
-│   ├── globals.css        # Global Tailwind styles
+│   ├── globals.css        # Global custom styles
 │   ├── layout.tsx         # Root layout with Russian header/nav
 │   └── page.tsx           # 24-hour dashboard (homepage)
 ├── components/            # Reusable UI components
