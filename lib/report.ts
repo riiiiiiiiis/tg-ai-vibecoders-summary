@@ -1,5 +1,5 @@
 import { generateStructuredReport, generateReportFromText } from "./ai";
-import { fetchOverview, fetchMessagesText } from "./queries";
+import { fetchOverview, fetchMessagesWithAuthors } from "./queries";
 import type { ReportPayload } from "./types";
 
 type ReportRequest = {
@@ -15,10 +15,15 @@ export async function buildDailyReport({ date, chatId, days }: ReportRequest): P
   
   try {
     console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId });
-    const texts = await fetchMessagesText({ chatId, from, to, limit: 5000 });
-    console.log("[Report] fetched messages", { count: texts.length, limit: 5000 });
+    const entries = await fetchMessagesWithAuthors({ chatId, from, to, limit: 5000 });
+    console.log("[Report] fetched messages", { count: entries.length, limit: 5000 });
     const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 20000);
-    const raw = texts.join("\n---\n");
+    const raw = entries
+      .map((e) => {
+        const time = e.timestamp.toISOString().slice(11, 16);
+        return `[${time}] ${e.label}: ${e.text}`;
+      })
+      .join("\n");
     const truncated = raw.length > maxChars;
     const blob = truncated ? raw.slice(0, maxChars) : raw;
     console.log("[Report] text payload", {

@@ -105,7 +105,7 @@ export async function generateReportFromText({
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: "Ты аналитик Telegram-сообщений. Отвечай по-деловому, кратко и на русском. Верни JSON строго по схеме."
+      content: "Ты аналитик Telegram-сообщений. Отвечай по-деловому, кратко и на русском. Учитывай авторов сообщений при анализе (тоны, роли, паттерны поведения). Верни JSON строго по схеме."
     },
     {
       role: "user",
@@ -113,7 +113,7 @@ export async function generateReportFromText({
         `Дата: ${date}`,
         `Чат: ${chatId ?? "(не указан)"}`,
         `Всего сообщений: ${metrics.totalMessages}; Уникальные: ${metrics.uniqueUsers}; Со ссылками: ${metrics.linkMessages}`,
-        "Ниже сообщения за день (усечённо):",
+        "Ниже сообщения за день (усечённо). Формат: [HH:MM] Автор: Текст",
         text
       ].join("\n")
     }
