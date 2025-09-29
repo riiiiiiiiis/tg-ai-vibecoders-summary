@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { buildDailyReport } from "@/lib/report";
 import type { ReportKind } from "@/lib/types";
 
+export const dynamic = "force-dynamic";
+
 const ALLOWED: ReportKind[] = ["generate", "insights", "preview"];
 
 export async function GET(request: Request, { params }: { params: { kind: string } }) {
@@ -11,6 +13,7 @@ export async function GET(request: Request, { params }: { params: { kind: string
   const daysParam = Number(searchParams.get("days") ?? "");
   const days = daysParam === 1 || daysParam === 7 ? (daysParam as 1 | 7) : undefined;
   const kind = params.kind as ReportKind;
+  console.log(`[API] /api/report/${kind}`, { date, chatId, days: days ?? 1 });
   // If neither date nor days provided, default to last 24 hours
 
   if (!ALLOWED.includes(kind)) {

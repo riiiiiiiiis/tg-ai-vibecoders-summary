@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { fetchOverview } from "@/lib/queries";
 
+export const dynamic = "force-dynamic";
+
 const ALLOWED_WINDOWS = new Set([1, 7]);
 
 export async function GET(request: Request) {

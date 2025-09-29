@@ -29,7 +29,8 @@ export function SummaryGenerator({ chatId, date }: SummaryGeneratorProps) {
         params.set('chat_id', chatId);
       }
       
-      const response = await fetch(`/api/report/generate?${params}`);
+      params.set('t', String(Date.now()));
+      const response = await fetch(`/api/report/generate?${params}` , { cache: 'no-store', method: 'GET' });
       const result = await response.json();
       
       if (!result.ok) {
