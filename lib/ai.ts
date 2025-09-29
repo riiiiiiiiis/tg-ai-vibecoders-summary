@@ -1,6 +1,8 @@
 import { reportSchema, type ParsedReport } from "./reportSchemas";
 import type { OverviewResponse } from "./types";
 
+const VERBOSE = process.env.LLM_DEBUG_VERBOSE === "1";
+
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 type ChatMessage = {
@@ -23,13 +25,25 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
     {
       role: "system",
       content:
-        "You are an analyst producing concise Telegram community summaries. Respond in Russian."
+        "Ты куратор дружеского Telegram-чата. Пиши по-русски, дружелюбно и по-человечески, без офисного стиля. Твоя цель — помочь владельцу чата понимать настроение и доставать идеи контента, которые реально зайдут участникам. Итог верни строго в JSON по схеме. В конце поля summary добавь раздел 'Психо‑профили' — 3–6 пунктов формата 'Автор: краткий профиль (тон, стиль, роль)'."
     },
     {
       role: "user",
       content: buildPrompt({ date, chatId, metrics })
     }
   ];
+
+  console.log("[OpenRouter] mode", "metrics-only");
+  console.log("[OpenRouter] metrics", {
+    total: metrics.totalMessages,
+    unique: metrics.uniqueUsers,
+    links: metrics.linkMessages
+  });
+  if (VERBOSE) console.log("[OpenRouter] messages", messages);
+  else console.log(
+    "[OpenRouter] message lengths",
+    messages.map((m) => ({ role: m.role, len: m.content.length }))
+  );
 
   try {
     const response = await callOpenRouter(messages, {
@@ -41,14 +55,16 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
             type: "object",
             properties: {
               summary: { type: "string" },
-              themes: { type: "array", items: { type: "string" }, maxItems: 5 },
-              insights: { type: "array", items: { type: "string" }, maxItems: 5 }
+              themes: { type: "array", items: { type: "string" }, maxItems: 8 },
+              insights: { type: "array", items: { type: "string" }, maxItems: 8 }
             },
             required: ["summary", "themes", "insights"],
             additionalProperties: false
           }
         }
-      }
+      },
+      temperature: 0.6,
+      maxOutputTokens: 1600
     });
 
     if (!response) return null;
@@ -73,11 +89,91 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
   }
 }
 
+export async function generateReportFromText({
+  date,
+  chatId,
+  metrics,
+  text
+}: {
+  date: string;
+  chatId?: string;
+  metrics: OverviewResponse;
+  text: string;
+}): Promise<ParsedReport | null> {
+  if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
+    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
+  }
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content: "Ты куратор дружеского Telegram-чата. Пиши по-русски, дружелюбно и по-человечески, без офисного стиля. Учитывай авторов сообщений (тоны, роли, паттерны поведения) и предлагай идеи, полезные владельцу чата. В конце поля summary добавь раздел 'Психо‑профили' — 3–6 пунктов формата 'Автор: краткий профиль (тон, стиль, роль)'. Верни результат строго в JSON по схеме."
+    },
+    {
+      role: "user",
+      content: [
+        `Дата: ${date}`,
+        `Чат: ${chatId ?? "(не указан)"}`,
+        `Всего сообщений: ${metrics.totalMessages}; Уникальные: ${metrics.uniqueUsers}; Со ссылками: ${metrics.linkMessages}`,
+        "Ниже сообщения за последние сутки (усечённо). Формат: [HH:MM] Автор: Текст",
+        text
+      ].join("\n")
+    }
+  ];
+
+  console.log("[OpenRouter] mode", "text-based");
+  console.log("[OpenRouter] metrics", {
+    total: metrics.totalMessages,
+    unique: metrics.uniqueUsers,
+    links: metrics.linkMessages
+  });
+  if (VERBOSE) console.log("[OpenRouter] messages", messages);
+  else console.log(
+    "[OpenRouter] message lengths",
+    messages.map((m) => ({ role: m.role, len: m.content.length }))
+  );
+
+  try {
+    const raw = await callOpenRouter(messages, {
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: "telegram_report",
+          schema: {
+            type: "object",
+            properties: {
+              summary: { type: "string" },
+              themes: { type: "array", items: { type: "string" }, maxItems: 8 },
+              insights: { type: "array", items: { type: "string" }, maxItems: 8 }
+            },
+            required: ["summary", "themes", "insights"],
+            additionalProperties: false
+          }
+        }
+      },
+      temperature: 0.6,
+      maxOutputTokens: 1600
+    });
+    if (!raw) return null;
+    const json = JSON.parse(raw);
+    const parsed = reportSchema.safeParse(json);
+    if (!parsed.success) {
+      console.error("Failed to parse OpenRouter text-based response", parsed.error);
+      return null;
+    }
+    return parsed.data;
+  } catch (error) {
+    console.error("OpenRouter report-from-text generation failed", error);
+    return null;
+  }
+}
+
 async function callOpenRouter(
   messages: ChatMessage[],
   options?: {
     temperature?: number;
     responseFormat?: Record<string, unknown>;
+    maxOutputTokens?: number;
   }
 ): Promise<string | null> {
   const controller = new AbortController();
@@ -87,27 +183,37 @@ async function callOpenRouter(
     model: process.env.OPENROUTER_MODEL,
     temperature: options?.temperature ?? 0.3,
     response_format: options?.responseFormat,
-    messages
+    messages,
+    max_tokens: options?.maxOutputTokens
   };
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    "HTTP-Referer": "https://telegram-dashboard.local",
+    "X-Title": "Telegram Dashboard"
+  } as const;
+  const bodyStr = JSON.stringify(requestPayload);
   console.log("[OpenRouter] Request", {
     endpoint: OPENROUTER_ENDPOINT,
     model: requestPayload.model,
     temperature: requestPayload.temperature,
     messageRoles: messages.map((message) => message.role),
-    timeoutMs
+    timeoutMs,
+    bodySizeBytes: bodyStr.length
   });
+  if (VERBOSE)
+    console.log("[OpenRouter] Request headers", {
+      ...headers,
+      Authorization: "Bearer ***"
+    });
+  if (VERBOSE) console.log("[OpenRouter] Request body", requestPayload);
   const start = Date.now();
 
   try {
     const res = await fetch(OPENROUTER_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://telegram-dashboard.local",
-        "X-Title": "Telegram Dashboard"
-      },
-      body: JSON.stringify(requestPayload),
+      headers,
+      body: bodyStr,
       signal: controller.signal
     });
     const durationMs = Date.now() - start;
@@ -127,6 +233,7 @@ async function callOpenRouter(
       choices?: Array<{ message?: { content?: string } }>;
     };
     const content = data.choices?.[0]?.message?.content;
+    if (VERBOSE) console.log("[OpenRouter] Raw content", content ?? null);
     return content ?? null;
   } finally {
     if (controller.signal.aborted) {
@@ -149,5 +256,5 @@ function buildPrompt({ date, chatId, metrics }: ReportArgs): string {
     ...metrics.series.map((point) => `${point.timestamp}: ${point.messageCount}`)
   ].filter(Boolean);
 
-  return `${lines.join("\n")}\n\nСформируй аналитический отчет: кратко опиши характер активности и настроения дня (до трех предложений), сформулируй 2–4 ключевые темы как выводы о динамике или структуре обсуждений и предложи 2–4 инсайта с интерпретацией значимости метрик и рекомендациями. Не повторяй метрики дословно, делай выводы на их основе. Оформляй ответ по-деловому, на русском.`;
+  return `${lines.join("\n")}\n\nСформируй полезный отчет для владельца дружеского чата: \n- summary: короткая, дружеская сводка (3–6 предложений) о том, что происходило и какое было настроение, без официоза;\n- themes: 3–5 конкретных идей контента (темы постов/обсуждений/мини-ивентов), основанных на динамике и интересах участников;\n- insights: 3–5 практических советов, что попробовать (форматы, опросы, челленджи, регулярности), поясни почему это сработает.\nНе повторяй метрики дословно — делай выводы на их основе. Верни строго JSON с полями summary, themes[], insights[].`;
 }

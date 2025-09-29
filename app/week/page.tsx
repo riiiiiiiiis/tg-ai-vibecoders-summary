@@ -1,5 +1,4 @@
 import { MetricCard } from "@/components/metric-card";
-import { TimeSeriesChart } from "@/components/time-series-chart";
 import { TopUsers } from "@/components/top-users";
 import { AiInsights } from "@/components/ai-insights";
 import { fetchOverview } from "@/lib/queries";
@@ -15,19 +14,17 @@ export default async function DashboardWeek({ searchParams }: PageProps) {
   const metrics = await fetchOverview({ chatId, window: 7 });
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div>
+      <div className="metrics-grid">
         <MetricCard label="Сообщения" value={metrics.totalMessages} />
         <MetricCard label="Уникальные участники" value={metrics.uniqueUsers} />
         <MetricCard label="Сообщения со ссылками" value={metrics.linkMessages} />
       </div>
 
-      <TimeSeriesChart series={metrics.series} windowLabel="Активность за 7 дней" />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="content-grid">
         <TopUsers topUsers={metrics.topUsers} />
         <AiInsights />
       </div>
-    </section>
+    </div>
   );
 }
