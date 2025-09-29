@@ -25,7 +25,7 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
     {
       role: "system",
       content:
-        "Ты куратор дружеского Telegram-чата. Пиши по-русски, дружелюбно и по-человечески, без офисного стиля. Твоя цель — помочь владельцу чата понимать настроение и доставать идеи контента, которые реально зайдут участникам. Итог верни строго в JSON по схеме."
+        "Ты куратор дружеского Telegram-чата. Пиши по-русски, дружелюбно и по-человечески, без офисного стиля. Твоя цель — помочь владельцу чата понимать настроение и доставать идеи контента, которые реально зайдут участникам. Итог верни строго в JSON по схеме. В конце поля summary добавь раздел 'Психо‑профили' — 3–6 пунктов формата 'Автор: краткий профиль (тон, стиль, роль)'."
     },
     {
       role: "user",
@@ -55,14 +55,16 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
             type: "object",
             properties: {
               summary: { type: "string" },
-              themes: { type: "array", items: { type: "string" }, maxItems: 5 },
-              insights: { type: "array", items: { type: "string" }, maxItems: 5 }
+              themes: { type: "array", items: { type: "string" }, maxItems: 8 },
+              insights: { type: "array", items: { type: "string" }, maxItems: 8 }
             },
             required: ["summary", "themes", "insights"],
             additionalProperties: false
           }
         }
-      }
+      },
+      temperature: 0.6,
+      maxOutputTokens: 1600
     });
 
     if (!response) return null;
@@ -105,7 +107,7 @@ export async function generateReportFromText({
   const messages: ChatMessage[] = [
     {
       role: "system",
-      content: "Ты куратор дружеского Telegram-чата. Пиши по-русски, дружелюбно и по-человечески, без офисного стиля. Учитывай авторов сообщений (тоны, роли, паттерны поведения) и предлагай идеи, полезные владельцу чата. Верни результат строго в JSON по схеме."
+      content: "Ты куратор дружеского Telegram-чата. Пиши по-русски, дружелюбно и по-человечески, без офисного стиля. Учитывай авторов сообщений (тоны, роли, паттерны поведения) и предлагай идеи, полезные владельцу чата. В конце поля summary добавь раздел 'Психо‑профили' — 3–6 пунктов формата 'Автор: краткий профиль (тон, стиль, роль)'. Верни результат строго в JSON по схеме."
     },
     {
       role: "user",
@@ -141,14 +143,16 @@ export async function generateReportFromText({
             type: "object",
             properties: {
               summary: { type: "string" },
-              themes: { type: "array", items: { type: "string" }, maxItems: 5 },
-              insights: { type: "array", items: { type: "string" }, maxItems: 5 }
+              themes: { type: "array", items: { type: "string" }, maxItems: 8 },
+              insights: { type: "array", items: { type: "string" }, maxItems: 8 }
             },
             required: ["summary", "themes", "insights"],
             additionalProperties: false
           }
         }
-      }
+      },
+      temperature: 0.6,
+      maxOutputTokens: 1600
     });
     if (!raw) return null;
     const json = JSON.parse(raw);
@@ -169,6 +173,7 @@ async function callOpenRouter(
   options?: {
     temperature?: number;
     responseFormat?: Record<string, unknown>;
+    maxOutputTokens?: number;
   }
 ): Promise<string | null> {
   const controller = new AbortController();
@@ -178,7 +183,8 @@ async function callOpenRouter(
     model: process.env.OPENROUTER_MODEL,
     temperature: options?.temperature ?? 0.3,
     response_format: options?.responseFormat,
-    messages
+    messages,
+    max_tokens: options?.maxOutputTokens
   };
   const headers = {
     "Content-Type": "application/json",

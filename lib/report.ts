@@ -17,7 +17,7 @@ export async function buildDailyReport({ date, chatId, days }: ReportRequest): P
     console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId });
     const entries = await fetchMessagesWithAuthors({ chatId, from, to, limit: 5000 });
     console.log("[Report] fetched messages", { count: entries.length, limit: 5000 });
-    const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 20000);
+    const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 80000);
     const raw = entries
       .map((e) => {
         const time = e.timestamp.toISOString().slice(11, 16);
