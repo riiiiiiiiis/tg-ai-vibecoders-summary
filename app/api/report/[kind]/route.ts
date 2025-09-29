@@ -8,18 +8,17 @@ export async function GET(request: Request, { params }: { params: { kind: string
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
   const chatId = searchParams.get("chat_id") ?? undefined;
+  const daysParam = Number(searchParams.get("days") ?? "");
+  const days = daysParam === 1 || daysParam === 7 ? (daysParam as 1 | 7) : undefined;
   const kind = params.kind as ReportKind;
-
-  if (!date) {
-    return NextResponse.json({ ok: false, error: "Missing date parameter" }, { status: 400 });
-  }
+  // If neither date nor days provided, default to last 24 hours
 
   if (!ALLOWED.includes(kind)) {
     return NextResponse.json({ ok: false, error: "Unsupported report kind" }, { status: 404 });
   }
 
   try {
-    const report = await buildDailyReport({ date, chatId });
+    const report = await buildDailyReport({ date: date ?? undefined, days: days ?? 1, chatId });
 
     if (!report) {
       return NextResponse.json({ 

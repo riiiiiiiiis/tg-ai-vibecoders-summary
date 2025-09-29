@@ -24,6 +24,7 @@ export function SummaryGenerator({ chatId, date }: SummaryGeneratorProps) {
     
     try {
       const params = new URLSearchParams({ date });
+      params.set('days', '1');
       if (chatId) {
         params.set('chat_id', chatId);
       }

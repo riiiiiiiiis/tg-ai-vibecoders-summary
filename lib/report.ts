@@ -1,15 +1,17 @@
 import { generateStructuredReport, generateReportFromText } from "./ai";
 import { fetchOverview, fetchMessagesText } from "./queries";
-import type { OverviewResponse, ReportPayload } from "./types";
+import type { ReportPayload } from "./types";
 
 type ReportRequest = {
-  date: string;
+  date?: string;
   chatId?: string;
+  days?: 1 | 7;
 };
 
-export async function buildDailyReport({ date, chatId }: ReportRequest): Promise<ReportPayload> {
-  const { from, to } = computeDayRange(date);
+export async function buildDailyReport({ date, chatId, days }: ReportRequest): Promise<ReportPayload> {
+  const { from, to } = computeRange({ date, days });
   const metrics = await fetchOverview({ chatId, from, to });
+  const dateForAi = date ?? new Date().toISOString().slice(0, 10);
   
   try {
     console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId });
@@ -28,15 +30,15 @@ export async function buildDailyReport({ date, chatId }: ReportRequest): Promise
     console.log("[Report] strategy", { used: blob ? "text-based" : "metrics-fallback" });
 
     const fromText = blob
-      ? await generateReportFromText({ date, chatId, metrics, text: blob })
+      ? await generateReportFromText({ date: dateForAi, chatId, metrics, text: blob })
       : null;
 
-    const use = fromText ?? (await generateStructuredReport({ date, chatId, metrics }));
+    const use = fromText ?? (await generateStructuredReport({ date: dateForAi, chatId, metrics }));
     console.log("[Report] result source", { source: fromText ? "text-based" : "metrics-only" });
     if (!use) return null;
 
     return {
-      date,
+      date: dateForAi,
       chatId,
       metrics,
       summary: use.summary,
@@ -56,6 +58,18 @@ function computeDayRange(date: string): { from: Date; to: Date } {
   }
   const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
   return { from, to };
+}
+
+function computeRange({ date, days }: { date?: string; days?: 1 | 7 }): { from: Date; to: Date } {
+  const now = new Date();
+  if (typeof days === "number") {
+    const from = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    return { from, to: now };
+  }
+  if (date) return computeDayRange(date);
+  // Default to last 24 hours if nothing provided
+  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  return { from, to: now };
 }
 
 
