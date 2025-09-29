@@ -121,6 +121,12 @@ export async function fetchMessagesText({
   limit?: number;
 }): Promise<string[]> {
   const pool = getPool();
+  console.log("[DB] fetchMessagesText params", {
+    chatId,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    limit
+  });
   const params: Array<string | Date | number> = [from, to];
   const where: string[] = [
     "m.sent_at >= $1",

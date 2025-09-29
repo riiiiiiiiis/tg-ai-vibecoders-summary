@@ -1,6 +1,8 @@
 import { reportSchema, type ParsedReport } from "./reportSchemas";
 import type { OverviewResponse } from "./types";
 
+const VERBOSE = process.env.LLM_DEBUG_VERBOSE === "1";
+
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 type ChatMessage = {
@@ -30,6 +32,18 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
       content: buildPrompt({ date, chatId, metrics })
     }
   ];
+
+  console.log("[OpenRouter] mode", "metrics-only");
+  console.log("[OpenRouter] metrics", {
+    total: metrics.totalMessages,
+    unique: metrics.uniqueUsers,
+    links: metrics.linkMessages
+  });
+  if (VERBOSE) console.log("[OpenRouter] messages", messages);
+  else console.log(
+    "[OpenRouter] message lengths",
+    messages.map((m) => ({ role: m.role, len: m.content.length }))
+  );
 
   try {
     const response = await callOpenRouter(messages, {
@@ -105,6 +119,18 @@ export async function generateReportFromText({
     }
   ];
 
+  console.log("[OpenRouter] mode", "text-based");
+  console.log("[OpenRouter] metrics", {
+    total: metrics.totalMessages,
+    unique: metrics.uniqueUsers,
+    links: metrics.linkMessages
+  });
+  if (VERBOSE) console.log("[OpenRouter] messages", messages);
+  else console.log(
+    "[OpenRouter] message lengths",
+    messages.map((m) => ({ role: m.role, len: m.content.length }))
+  );
+
   try {
     const raw = await callOpenRouter(messages, {
       responseFormat: {
@@ -154,25 +180,34 @@ async function callOpenRouter(
     response_format: options?.responseFormat,
     messages
   };
+  const headers = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+    "HTTP-Referer": "https://telegram-dashboard.local",
+    "X-Title": "Telegram Dashboard"
+  } as const;
+  const bodyStr = JSON.stringify(requestPayload);
   console.log("[OpenRouter] Request", {
     endpoint: OPENROUTER_ENDPOINT,
     model: requestPayload.model,
     temperature: requestPayload.temperature,
     messageRoles: messages.map((message) => message.role),
-    timeoutMs
+    timeoutMs,
+    bodySizeBytes: bodyStr.length
   });
+  if (VERBOSE)
+    console.log("[OpenRouter] Request headers", {
+      ...headers,
+      Authorization: "Bearer ***"
+    });
+  if (VERBOSE) console.log("[OpenRouter] Request body", requestPayload);
   const start = Date.now();
 
   try {
     const res = await fetch(OPENROUTER_ENDPOINT, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://telegram-dashboard.local",
-        "X-Title": "Telegram Dashboard"
-      },
-      body: JSON.stringify(requestPayload),
+      headers,
+      body: bodyStr,
       signal: controller.signal
     });
     const durationMs = Date.now() - start;
@@ -192,6 +227,7 @@ async function callOpenRouter(
       choices?: Array<{ message?: { content?: string } }>;
     };
     const content = data.choices?.[0]?.message?.content;
+    if (VERBOSE) console.log("[OpenRouter] Raw content", content ?? null);
     return content ?? null;
   } finally {
     if (controller.signal.aborted) {

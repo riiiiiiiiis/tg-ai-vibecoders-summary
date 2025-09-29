@@ -12,15 +12,27 @@ export async function buildDailyReport({ date, chatId }: ReportRequest): Promise
   const metrics = await fetchOverview({ chatId, from, to });
   
   try {
+    console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId });
     const texts = await fetchMessagesText({ chatId, from, to, limit: 5000 });
+    console.log("[Report] fetched messages", { count: texts.length, limit: 5000 });
     const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 20000);
-    const blob = texts.join("\n---\n").slice(0, maxChars);
+    const raw = texts.join("\n---\n");
+    const truncated = raw.length > maxChars;
+    const blob = truncated ? raw.slice(0, maxChars) : raw;
+    console.log("[Report] text payload", {
+      totalChars: raw.length,
+      usedChars: blob.length,
+      truncated,
+      maxChars
+    });
+    console.log("[Report] strategy", { used: blob ? "text-based" : "metrics-fallback" });
 
     const fromText = blob
       ? await generateReportFromText({ date, chatId, metrics, text: blob })
       : null;
 
     const use = fromText ?? (await generateStructuredReport({ date, chatId, metrics }));
+    console.log("[Report] result source", { source: fromText ? "text-based" : "metrics-only" });
     if (!use) return null;
 
     return {
