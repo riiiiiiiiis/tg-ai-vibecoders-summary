@@ -7,38 +7,32 @@ type AiInsightsProps = {
 export function AiInsights({ report }: AiInsightsProps) {
   if (!report) {
     return (
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-        <h2 className="text-sm font-semibold text-slate-200">AI дайджест</h2>
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">
-          Нажмите «Генерировать» ниже, чтобы получить AI-анализ активности.
-        </p>
+      <div className="content-section">
+        <h2>AI дайджест</h2>
+        <p>Нажмите «Генерировать» ниже, чтобы получить AI-анализ активности.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-      <h2 className="text-sm font-semibold text-slate-200">AI дайджест</h2>
-      <p className="mt-3 text-sm leading-relaxed text-slate-300">{report.summary}</p>
+    <div className="content-section">
+      <h2>AI дайджест</h2>
+      <p>{report.summary}</p>
 
-      <div className="mt-4">
-        <h3 className="text-xs uppercase tracking-wide text-slate-500">Темы дня</h3>
-        <ul className="mt-2 space-y-2">
+      <div>
+        <h3>Темы дня</h3>
+        <ul>
           {report.themes.map((theme, index) => (
-            <li key={`theme-${index}`} className="text-sm text-slate-300">
-              • {theme}
-            </li>
+            <li key={`theme-${index}`}>• {theme}</li>
           ))}
         </ul>
       </div>
 
-      <div className="mt-4">
-        <h3 className="text-xs uppercase tracking-wide text-slate-500">Инсайты</h3>
-        <ul className="mt-2 space-y-2">
+      <div>
+        <h3>Инсайты</h3>
+        <ul>
           {report.insights.map((insight, index) => (
-            <li key={`insight-${index}`} className="text-sm text-slate-300">
-              • {insight}
-            </li>
+            <li key={`insight-${index}`}>• {insight}</li>
           ))}
         </ul>
       </div>

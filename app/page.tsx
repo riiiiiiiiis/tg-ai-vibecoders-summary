@@ -1,5 +1,4 @@
 import { MetricCard } from "@/components/metric-card";
-import { TimeSeriesChart } from "@/components/time-series-chart";
 import { TopUsers } from "@/components/top-users";
 import { AiInsights } from "@/components/ai-insights";
 import { SummaryGenerator } from "@/components/summary-generator";
@@ -18,21 +17,19 @@ export default async function Dashboard24h({ searchParams }: PageProps) {
   const isoDate = date.toISOString().slice(0, 10);
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div>
+      <div className="metrics-grid">
         <MetricCard label="Сообщения" value={metrics.totalMessages} />
         <MetricCard label="Уникальные участники" value={metrics.uniqueUsers} />
         <MetricCard label="Сообщения со ссылками" value={metrics.linkMessages} />
       </div>
 
-      <TimeSeriesChart series={metrics.series} windowLabel="Активность за 24 часа" />
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="content-grid">
         <TopUsers topUsers={metrics.topUsers} />
         <AiInsights />
       </div>
       
       <SummaryGenerator chatId={chatId} date={isoDate} />
-    </section>
+    </div>
   );
 }

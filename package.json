@@ -6,11 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "test": "vitest run"
+    "lint": "next lint"
   },
   "dependencies": {
-    "chart.js": "4.4.4",
     "next": "15.0.0-canary.58",
     "pg": "8.12.0",
     "react": "19.0.0-rc.0",
@@ -18,18 +16,12 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.0.0-alpha.24",
     "@types/node": "20.14.9",
     "@types/pg": "^8.15.5",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
-    "@vitest/coverage-v8": "1.6.0",
-    "@vitest/ui": "1.6.0",
     "eslint": "8.57.0",
     "eslint-config-next": "15.0.0-canary.58",
-    "postcss": "8.4.38",
-    "tailwindcss": "4.0.0-alpha.24",
-    "typescript": "5.5.3",
-    "vitest": "1.6.0"
+    "typescript": "5.5.3"
   }
 }
