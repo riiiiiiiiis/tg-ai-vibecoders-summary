@@ -1,9 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    typedRoutes: true,
-    serverComponentsExternalPackages: ["pg"]
-  }
+    typedRoutes: true
+  },
+  serverExternalPackages: ["pg"],
 };
 
 export default nextConfig;
