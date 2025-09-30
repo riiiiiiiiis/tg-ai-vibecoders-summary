@@ -65,7 +65,7 @@ export async function fetchOverview({ chatId, window = 1, from, to }: OverviewPa
       WHERE ${whereClause}
       GROUP BY m.user_id, u.first_name, u.last_name, u.username
       ORDER BY COUNT(*) DESC
-      LIMIT 5
+      LIMIT 10
     `,
     params
   );
