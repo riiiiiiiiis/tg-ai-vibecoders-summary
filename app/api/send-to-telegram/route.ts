@@ -121,27 +121,155 @@ export async function POST(request: Request) {
 function formatReportForTelegram(report: NonNullable<Awaited<ReturnType<typeof buildDailyReport>>>): string {
   const lines: string[] = [];
 
-  lines.push(`📊 *Саммари за ${report.date}*`);
-  lines.push("");
-  lines.push(report.summary);
+  lines.push(`📊 *Отчёт за ${report.date}*`);
   lines.push("");
 
-  if (report.themes.length > 0) {
-    lines.push("🎯 *Темы для обсуждения:*");
-    report.themes.forEach((theme, idx) => {
-      lines.push(`${idx + 1}. ${theme}`);
-    });
+  // Проверяем тип отчёта
+  if ('persona' in report && 'data' in report) {
+    // Персонализированный отчёт
+    const persona = report.persona;
+    const data = report.data;
+    
+    lines.push(`🔮 *Эксперт: ${getPersonaEmoji(persona)}*`);
     lines.push("");
-  }
+    
+    if (persona === 'business') {
+      if (data.monetization_ideas?.length > 0) {
+        lines.push("💰 *Идеи монетизации:*");
+        data.monetization_ideas.forEach((idea: string, idx: number) => {
+          lines.push(`${idx + 1}. ${idea}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.revenue_strategies?.length > 0) {
+        lines.push("📈 *Стратегии дохода:*");
+        data.revenue_strategies.forEach((strategy: string, idx: number) => {
+          lines.push(`${idx + 1}. ${strategy}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.roi_insights?.length > 0) {
+        lines.push("🔥 *ROI-инсайты:*");
+        data.roi_insights.forEach((insight: string, idx: number) => {
+          lines.push(`${idx + 1}. ${insight}`);
+        });
+      }
+    } else if (persona === 'psychologist') {
+      if (data.group_atmosphere) {
+        lines.push("🌡️ *Атмосфера группы:*");
+        lines.push(data.group_atmosphere);
+        lines.push("");
+      }
+      
+      if (data.psychological_archetypes?.length > 0) {
+        lines.push("🎭 *Психологические архетипы:*");
+        data.psychological_archetypes.forEach((archetype: {name: string, archetype: string, influence: string}, idx: number) => {
+          lines.push(`${idx + 1}. **${archetype.name}** (Архетип: ${archetype.archetype}) - ${archetype.influence}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.emotional_patterns?.length > 0) {
+        lines.push("💡 *Эмоциональные паттерны:*");
+        data.emotional_patterns.forEach((pattern: string, idx: number) => {
+          lines.push(`${idx + 1}. ${pattern}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.group_dynamics?.length > 0) {
+        lines.push("⚙️ *Групповая динамика:*");
+        data.group_dynamics.forEach((dynamic: string, idx: number) => {
+          lines.push(`${idx + 1}. ${dynamic}`);
+        });
+      }
+    } else if (persona === 'creative') {
+      if (data.creative_temperature) {
+        lines.push("🌡️ *Креативная температура:*");
+        lines.push(data.creative_temperature);
+        lines.push("");
+      }
+      
+      if (data.viral_concepts?.length > 0) {
+        lines.push("🚀 *Вирусные концепции:*");
+        data.viral_concepts.forEach((concept: string, idx: number) => {
+          lines.push(`${idx + 1}. ${concept}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.content_formats?.length > 0) {
+        lines.push("🎨 *Контент-форматы:*");
+        data.content_formats.forEach((format: string, idx: number) => {
+          lines.push(`${idx + 1}. ${format}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.trend_opportunities?.length > 0) {
+        lines.push("🔥 *Трендовые возможности:*");
+        data.trend_opportunities.forEach((opportunity: string, idx: number) => {
+          lines.push(`${idx + 1}. ${opportunity}`);
+        });
+      }
+    } else {
+      // Общие персоны (twitter, reddit, curator) - стандартный формат
+      if (data.summary) {
+        lines.push(data.summary);
+        lines.push("");
+      }
+      
+      if (data.themes?.length > 0) {
+        lines.push("🎯 *Темы:*");
+        data.themes.forEach((theme: string, idx: number) => {
+          lines.push(`${idx + 1}. ${theme}`);
+        });
+        lines.push("");
+      }
+      
+      if (data.insights?.length > 0) {
+        lines.push("💡 *Инсайты:*");
+        data.insights.forEach((insight: string, idx: number) => {
+          lines.push(`${idx + 1}. ${insight}`);
+        });
+      }
+    }
+  } else if ('summary' in report && 'themes' in report && 'insights' in report) {
+    // Стандартный отчёт
+    lines.push(report.summary);
+    lines.push("");
 
-  if (report.insights.length > 0) {
-    lines.push("💡 *Рекомендации:*");
-    report.insights.forEach((insight, idx) => {
-      lines.push(`${idx + 1}. ${insight}`);
-    });
+    if (report.themes.length > 0) {
+      lines.push("🎯 *Темы для обсуждения:*");
+      report.themes.forEach((theme, idx) => {
+        lines.push(`${idx + 1}. ${theme}`);
+      });
+      lines.push("");
+    }
+
+    if (report.insights.length > 0) {
+      lines.push("💡 *Рекомендации:*");
+      report.insights.forEach((insight, idx) => {
+        lines.push(`${idx + 1}. ${insight}`);
+      });
+    }
   }
 
   return lines.join("\n");
+}
+
+function getPersonaEmoji(persona?: string): string {
+  switch (persona) {
+    case 'business': return '💼 Бизнес-консультант';
+    case 'psychologist': return '🧠 Психолог сообществ';
+    case 'creative': return '🚀 Креативный маркетолог';
+    case 'twitter': return '🐦 Twitter-скептик';
+    case 'reddit': return '👽 Reddit-модератор';
+    case 'curator': return '🎯 Куратор-реалист';
+    default: return '🔮 Аналитик';
+  }
 }
 
 function splitMessage(text: string, maxLength: number): string[] {

@@ -1,6 +1,6 @@
 import { generateStructuredReport, generateReportFromText, generateReportWithPersona, PersonaType } from "./ai";
 import { fetchOverview, fetchMessagesWithAuthors } from "./queries";
-import type { ReportPayload } from "./types";
+import type { ReportPayload, PersonaReportPayload } from "./types";
 
 type ReportRequest = {
   date?: string;
@@ -9,7 +9,7 @@ type ReportRequest = {
   persona?: PersonaType;
 };
 
-export async function buildDailyReport({ date, chatId, days, persona }: ReportRequest): Promise<ReportPayload> {
+export async function buildDailyReport({ date, chatId, days, persona }: ReportRequest): Promise<ReportPayload | PersonaReportPayload> {
   const { from, to } = computeRange({ date, days });
   const metrics = await fetchOverview({ chatId, from, to });
   const dateForAi = date ?? new Date().toISOString().slice(0, 10);
@@ -35,24 +35,36 @@ export async function buildDailyReport({ date, chatId, days, persona }: ReportRe
     });
     console.log("[Report] strategy", { used: blob ? "text-based" : "metrics-fallback" });
 
-    const use = persona
-      ? await generateReportWithPersona({ date: dateForAi, chatId, metrics, text: blob, persona })
-      : blob
+    if (persona) {
+      const use = await generateReportWithPersona({ date: dateForAi, chatId, metrics, text: blob, persona });
+      console.log("[Report] result source", { source: `persona-${persona}` });
+      if (!use) return null;
+      
+      return {
+        date: dateForAi,
+        chatId,
+        metrics,
+        persona,
+        data: use
+      };
+    } else {
+      const use = blob
         ? await generateReportFromText({ date: dateForAi, chatId, metrics, text: blob })
         : await generateStructuredReport({ date: dateForAi, chatId, metrics });
-    console.log("[Report] result source", { 
-      source: persona ? `persona-${persona}` : blob ? "text-based" : "metrics-only" 
-    });
-    if (!use) return null;
+      console.log("[Report] result source", { 
+        source: blob ? "text-based" : "metrics-only" 
+      });
+      if (!use) return null;
 
-    return {
-      date: dateForAi,
-      chatId,
-      metrics,
-      summary: use.summary,
-      themes: use.themes,
-      insights: use.insights
-    };
+      return {
+        date: dateForAi,
+        chatId,
+        metrics,
+        summary: use.summary,
+        themes: use.themes,
+        insights: use.insights
+      };
+    }
   } catch (error) {
     console.error("AI report generation failed:", error);
     return null;

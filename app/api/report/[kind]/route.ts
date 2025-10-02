@@ -1,7 +1,16 @@
 import { NextResponse } from "next/server";
 import { buildDailyReport } from "@/lib/report";
-import type { ReportKind } from "@/lib/types";
+import type { ReportKind, ReportPayload, PersonaReportPayload } from "@/lib/types";
 import type { PersonaType } from "@/lib/ai";
+
+// Type guards
+function isPersonaReport(report: ReportPayload | PersonaReportPayload): report is PersonaReportPayload {
+  return report !== null && 'persona' in report && 'data' in report;
+}
+
+function isTraditionalReport(report: ReportPayload | PersonaReportPayload): report is NonNullable<ReportPayload> {
+  return report !== null && 'summary' in report && 'themes' in report && 'insights' in report;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -33,21 +42,37 @@ export async function GET(request: Request, { params }: { params: { kind: string
     }
 
     if (kind === "insights") {
-      return NextResponse.json({ ok: true, data: report.insights });
+      if (isPersonaReport(report)) {
+        // Для персонализированных отчётов отдаём всё данные
+        return NextResponse.json({ ok: true, data: report.data });
+      }
+      if (isTraditionalReport(report)) {
+        return NextResponse.json({ ok: true, data: report.insights });
+      }
+      return NextResponse.json({ ok: false, error: "Invalid report format" }, { status: 500 });
     }
 
     if (kind === "generate") {
-      return NextResponse.json({
-        ok: true,
-        data: {
-          summary: report.summary,
-          themes: report.themes,
-          insights: report.insights
-        }
-      });
+      if (isPersonaReport(report)) {
+        return NextResponse.json({
+          ok: true,
+          data: report.data
+        });
+      }
+      if (isTraditionalReport(report)) {
+        return NextResponse.json({
+          ok: true,
+          data: {
+            summary: report.summary,
+            themes: report.themes,
+            insights: report.insights
+          }
+        });
+      }
+      return NextResponse.json({ ok: false, error: "Invalid report format" }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true, data: report });
+    return NextResponse.json({ ok: true, data: isPersonaReport(report) ? report.data : report });
   } catch (error) {
     console.error(`/api/report/${kind} error`, error);
     const errorMessage = error instanceof Error ? error.message : "Failed to build report";

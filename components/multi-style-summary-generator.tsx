@@ -24,9 +24,21 @@ type MultiStyleSummaryGeneratorProps = {
 const PERSONAS = [
   { 
     key: 'curator' as PersonaType, 
-    title: '🎯 Куратор-аналитик', 
-    description: 'Классический анализ сообщества',
+    title: '🎯 Куратор-реалист', 
+    description: 'Честный анализ без прикрас',
     color: '#2563eb'
+  },
+  { 
+    key: 'twitter' as PersonaType, 
+    title: '🐦 Twitter-скептик', 
+    description: 'Циничный взгляд со стороны',
+    color: '#1da1f2'
+  },
+  { 
+    key: 'reddit' as PersonaType, 
+    title: '👽 Reddit-модератор', 
+    description: 'Анализ токсичности и групп-динамики',
+    color: '#ff4500'
   },
   { 
     key: 'business' as PersonaType, 
@@ -47,6 +59,317 @@ const PERSONAS = [
     color: '#7c3aed'
   },
 ];
+
+// Функция для рендера разных типов контента в зависимости от персоны
+function renderReportContent(data: any, persona: PersonaType, color: string) {
+  if (persona === 'business') {
+    return (
+      <>
+        {data.monetization_ideas && data.monetization_ideas.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              💰 Идеи монетизации
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.monetization_ideas.map((idea: string, index: number) => (
+                <li key={`idea-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {idea}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.revenue_strategies && data.revenue_strategies.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              📈 Стратегии дохода
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.revenue_strategies.map((strategy: string, index: number) => (
+                <li key={`strategy-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {strategy}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.roi_insights && data.roi_insights.length > 0 && (
+          <div>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🔥 ROI-инсайты
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.roi_insights.map((insight: string, index: number) => (
+                <li key={`roi-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {insight}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    );
+  }
+  
+  if (persona === 'psychologist') {
+    return (
+      <>
+        {data.group_atmosphere && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🌡️ Атмосфера группы
+            </h4>
+            <p style={{ 
+              lineHeight: '1.6', 
+              margin: 0,
+              color: '#374151',
+              fontStyle: 'italic'
+            }}>
+              {data.group_atmosphere}
+            </p>
+          </div>
+        )}
+        
+        {data.psychological_archetypes && data.psychological_archetypes.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🎭 Психологические архетипы
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.psychological_archetypes.map((archetype: {name: string, archetype: string, influence: string}, index: number) => (
+                <li key={`archetype-${index}`} style={{ marginBottom: '0.75rem', color: '#374151' }}>
+                  <strong style={{ color: color }}>{archetype.name}</strong> 
+                  <em style={{ color: '#64748b' }}>({archetype.archetype})</em>
+                  <br />
+                  <span style={{ fontSize: '0.85rem' }}>{archetype.influence}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.emotional_patterns && data.emotional_patterns.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              💡 Эмоциональные паттерны
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.emotional_patterns.map((pattern: string, index: number) => (
+                <li key={`pattern-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {pattern}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.group_dynamics && data.group_dynamics.length > 0 && (
+          <div>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              ⚙️ Групповая динамика
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.group_dynamics.map((dynamic: string, index: number) => (
+                <li key={`dynamic-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {dynamic}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    );
+  }
+  
+  if (persona === 'creative') {
+    return (
+      <>
+        {data.creative_temperature && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🌡️ Креативная температура
+            </h4>
+            <p style={{ 
+              lineHeight: '1.6', 
+              margin: 0,
+              color: '#374151',
+              fontStyle: 'italic'
+            }}>
+              {data.creative_temperature}
+            </p>
+          </div>
+        )}
+        
+        {data.viral_concepts && data.viral_concepts.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🚀 Вирусные концепции
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.viral_concepts.map((concept: string, index: number) => (
+                <li key={`concept-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {concept}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.content_formats && data.content_formats.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🎨 Контент-форматы
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.content_formats.map((format: string, index: number) => (
+                <li key={`format-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {format}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.trend_opportunities && data.trend_opportunities.length > 0 && (
+          <div>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🔥 Трендовые возможности
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.trend_opportunities.map((opportunity: string, index: number) => (
+                <li key={`opportunity-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {opportunity}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    );
+  }
+  
+  // Стандартный формат для curator, twitter, reddit
+  return (
+    <>
+      {data.summary && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h4 style={{ 
+            margin: '0 0 0.75rem 0', 
+            color: color,
+            fontSize: '1rem',
+            fontWeight: '600'
+          }}>
+            📋 Сводка
+          </h4>
+          <p style={{ 
+            lineHeight: '1.6', 
+            margin: 0,
+            color: '#374151'
+          }}>
+            {data.summary}
+          </p>
+        </div>
+      )}
+
+      {data.themes && data.themes.length > 0 && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <h4 style={{ 
+            margin: '0 0 0.75rem 0', 
+            color: color,
+            fontSize: '1rem',
+            fontWeight: '600'
+          }}>
+            🎯 Темы
+          </h4>
+          <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+            {data.themes.map((theme: string, index: number) => (
+              <li key={`theme-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                {theme}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {data.insights && data.insights.length > 0 && (
+        <div>
+          <h4 style={{ 
+            margin: '0 0 0.75rem 0', 
+            color: color,
+            fontSize: '1rem',
+            fontWeight: '600'
+          }}>
+            💡 Инсайты
+          </h4>
+          <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+            {data.insights.map((insight: string, index: number) => (
+              <li key={`insight-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                {insight}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
 
 export function MultiStyleSummaryGenerator({ chatId, date }: MultiStyleSummaryGeneratorProps) {
   const [reports, setReports] = useState<PersonaReport[]>(
@@ -157,7 +480,7 @@ export function MultiStyleSummaryGenerator({ chatId, date }: MultiStyleSummaryGe
         <div>
           <h2>Анализ в разных стилях</h2>
           <p style={{ color: '#666', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
-            Получите 4 варианта отчета от разных экспертов
+            Получите 6 вариантов отчета от разных экспертов — от честного до циничного
           </p>
         </div>
         <button 
@@ -272,59 +595,7 @@ export function MultiStyleSummaryGenerator({ chatId, date }: MultiStyleSummaryGe
 
               {report.data && (
                 <div style={{ fontSize: '0.9rem' }}>
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ 
-                      margin: '0 0 0.75rem 0', 
-                      color: config.color,
-                      fontSize: '1rem',
-                      fontWeight: '600'
-                    }}>
-                      📋 Сводка
-                    </h4>
-                    <p style={{ 
-                      lineHeight: '1.6', 
-                      margin: 0,
-                      color: '#374151'
-                    }}>
-                      {report.data.summary}
-                    </p>
-                  </div>
-
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ 
-                      margin: '0 0 0.75rem 0', 
-                      color: config.color,
-                      fontSize: '1rem',
-                      fontWeight: '600'
-                    }}>
-                      🎯 Темы
-                    </h4>
-                    <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
-                      {report.data.themes.map((theme, index) => (
-                        <li key={`theme-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
-                          {theme}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <h4 style={{ 
-                      margin: '0 0 0.75rem 0', 
-                      color: config.color,
-                      fontSize: '1rem',
-                      fontWeight: '600'
-                    }}>
-                      💡 Инсайты
-                    </h4>
-                    <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
-                      {report.data.insights.map((insight, index) => (
-                        <li key={`insight-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
-                          {insight}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                  {renderReportContent(report.data, report.persona, config.color)}
                 </div>
               )}
 

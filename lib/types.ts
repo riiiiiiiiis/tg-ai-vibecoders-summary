@@ -27,3 +27,11 @@ export type ReportPayload = {
   themes: string[];
   insights: string[];
 } | null;
+
+export type PersonaReportPayload = {
+  date: string;
+  chatId?: string;
+  metrics: OverviewResponse;
+  persona?: string;
+  data: any; // Это может быть ParsedReport, BusinessReport, PsychologyReport, или CreativeReport
+} | null;
