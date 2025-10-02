@@ -1,6 +1,7 @@
 import { MetricCard } from "@/components/metric-card";
 import { TopUsers } from "@/components/top-users";
 import { AiInsights } from "@/components/ai-insights";
+import { MultiStyleSummaryGenerator } from "@/components/multi-style-summary-generator";
 import { fetchOverview } from "@/lib/queries";
 
 type PageProps = {
@@ -12,6 +13,7 @@ export default async function DashboardWeek({ searchParams }: PageProps) {
   const chatId = Array.isArray(chatParam) ? chatParam[0] : chatParam;
 
   const metrics = await fetchOverview({ chatId, window: 7 });
+  const date = new Date().toISOString().slice(0, 10);
 
   return (
     <div>
@@ -25,6 +27,8 @@ export default async function DashboardWeek({ searchParams }: PageProps) {
         <TopUsers topUsers={metrics.topUsers} />
         <AiInsights />
       </div>
+      
+      <MultiStyleSummaryGenerator chatId={chatId} date={date} />
     </div>
   );
 }

@@ -44,6 +44,8 @@ export async function POST(request: Request) {
       console.log("[Telegram] Using pre-generated report from request body");
       report = {
         date: body.date || date || new Date().toISOString().split("T")[0],
+        chatId,
+        metrics: { totalMessages: 0, uniqueUsers: 0, linkMessages: 0, topUsers: [], series: [] }, // Dummy metrics for pre-generated report
         summary: body.summary,
         themes: body.themes,
         insights: body.insights

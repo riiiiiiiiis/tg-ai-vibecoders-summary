@@ -1,4 +1,4 @@
-import { generateStructuredReport, generateReportFromText } from "./ai";
+import { generateStructuredReport, generateReportFromText, generateReportWithPersona, PersonaType } from "./ai";
 import { fetchOverview, fetchMessagesWithAuthors } from "./queries";
 import type { ReportPayload } from "./types";
 
@@ -6,9 +6,10 @@ type ReportRequest = {
   date?: string;
   chatId?: string;
   days?: 1 | 7;
+  persona?: PersonaType;
 };
 
-export async function buildDailyReport({ date, chatId, days }: ReportRequest): Promise<ReportPayload> {
+export async function buildDailyReport({ date, chatId, days, persona }: ReportRequest): Promise<ReportPayload> {
   const { from, to } = computeRange({ date, days });
   const metrics = await fetchOverview({ chatId, from, to });
   const dateForAi = date ?? new Date().toISOString().slice(0, 10);
@@ -34,12 +35,14 @@ export async function buildDailyReport({ date, chatId, days }: ReportRequest): P
     });
     console.log("[Report] strategy", { used: blob ? "text-based" : "metrics-fallback" });
 
-    const fromText = blob
-      ? await generateReportFromText({ date: dateForAi, chatId, metrics, text: blob })
-      : null;
-
-    const use = fromText ?? (await generateStructuredReport({ date: dateForAi, chatId, metrics }));
-    console.log("[Report] result source", { source: fromText ? "text-based" : "metrics-only" });
+    const use = persona
+      ? await generateReportWithPersona({ date: dateForAi, chatId, metrics, text: blob, persona })
+      : blob
+        ? await generateReportFromText({ date: dateForAi, chatId, metrics, text: blob })
+        : await generateStructuredReport({ date: dateForAi, chatId, metrics });
+    console.log("[Report] result source", { 
+      source: persona ? `persona-${persona}` : blob ? "text-based" : "metrics-only" 
+    });
     if (!use) return null;
 
     return {

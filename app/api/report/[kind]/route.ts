@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildDailyReport } from "@/lib/report";
 import type { ReportKind } from "@/lib/types";
+import type { PersonaType } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,9 @@ export async function GET(request: Request, { params }: { params: { kind: string
   const chatId = searchParams.get("chat_id") ?? undefined;
   const daysParam = Number(searchParams.get("days") ?? "");
   const days = daysParam === 1 || daysParam === 7 ? (daysParam as 1 | 7) : undefined;
+  const persona = searchParams.get("persona") as PersonaType | null;
   const kind = params.kind as ReportKind;
-  console.log(`[API] /api/report/${kind}`, { date, chatId, days: days ?? 1 });
+  console.log(`[API] /api/report/${kind}`, { date, chatId, days: days ?? 1, persona: persona ?? 'default' });
   // If neither date nor days provided, default to last 24 hours
 
   if (!ALLOWED.includes(kind)) {
@@ -21,7 +23,7 @@ export async function GET(request: Request, { params }: { params: { kind: string
   }
 
   try {
-    const report = await buildDailyReport({ date: date ?? undefined, days: days ?? 1, chatId });
+    const report = await buildDailyReport({ date: date ?? undefined, days: days ?? 1, chatId, persona: persona ?? undefined });
 
     if (!report) {
       return NextResponse.json({ 

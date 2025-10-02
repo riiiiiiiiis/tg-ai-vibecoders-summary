@@ -1,7 +1,7 @@
 import { MetricCard } from "@/components/metric-card";
 import { TopUsers } from "@/components/top-users";
 import { AiInsights } from "@/components/ai-insights";
-import { SummaryGenerator } from "@/components/summary-generator";
+import { MultiStyleSummaryGenerator } from "@/components/multi-style-summary-generator";
 import { fetchOverview } from "@/lib/queries";
 
 type PageProps = {
@@ -29,7 +29,7 @@ export default async function Dashboard24h({ searchParams }: PageProps) {
         <AiInsights />
       </div>
       
-      <SummaryGenerator chatId={chatId} date={isoDate} />
+      <MultiStyleSummaryGenerator chatId={chatId} date={isoDate} />
     </div>
   );
 }
