@@ -1,0 +1,18 @@
+{
+  "enabled": true,
+  "name": "Spec to Docs Updater",
+  "description": "Monitors specification files and automatically updates related documentation when specs are completed or modified",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "lib/reportSchemas.ts",
+      "lib/types.ts",
+      "app/api/*/route.ts"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A specification file has been updated. Please review the changes and update any related documentation files (README.md, API docs, type definitions, or component documentation) to reflect the new specifications. Focus on keeping documentation in sync with the actual implementation."
+  }
+}
