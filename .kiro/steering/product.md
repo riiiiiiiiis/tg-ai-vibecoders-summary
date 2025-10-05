@@ -2,7 +2,9 @@
 
 ## Telegram Dashboard — Analytics & Insights
 
-A Next.js 15 application that provides real-time analytics and AI-powered insights for Telegram communities. The dashboard connects to an existing PostgreSQL database containing Telegram chat messages and user data, with mandatory AI analysis via Google Gemini 2.5 Pro.
+A Next.js 15 read-only analytics application that provides real-time analytics and AI-powered insights for Telegram communities. The dashboard connects to an existing PostgreSQL database containing Telegram chat messages and user data with read-only access, with mandatory AI analysis via Google Gemini 2.5 Pro.
+
+**Important: This is a read-only dashboard application. It has no write permissions to the database and only performs SELECT queries for analytics and reporting purposes.**
 
 ## Key Features
 
@@ -40,6 +42,7 @@ A Next.js 15 application that provides real-time analytics and AI-powered insigh
 - `messages` table with columns: `id`, `user_id`, `chat_id`, `text`, `sent_at`
 - `users` table with columns: `id`, `first_name`, `last_name`, `username`
 - Proper indexing on `sent_at` and `chat_id` for performance
+- **Read-only database access** - Application only performs SELECT queries, no INSERT/UPDATE/DELETE operations
 
 ### Environment Configuration
 - `DATABASE_URL` - PostgreSQL connection string

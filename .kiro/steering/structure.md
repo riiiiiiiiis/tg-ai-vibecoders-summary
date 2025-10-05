@@ -43,12 +43,14 @@
 - **Co-location**: Related functionality grouped together
 
 ### Database Layer (`/lib`)
-- `db.ts` - Connection pooling with global singleton pattern
-- `queries.ts` - Parameterized SQL queries with type safety
+- `db.ts` - Connection pooling with global singleton pattern (read-only access)
+- `queries.ts` - Parameterized SELECT queries with type safety (no write operations)
 - `types.ts` - Database result type definitions
 - `ai.ts` - OpenRouter integration with structured JSON responses
 - `report.ts` - Business logic orchestrating data + AI
 - `reportSchemas.ts` - Zod validation for AI response structure
+
+**Note: All database operations are read-only. The application only executes SELECT queries for analytics purposes.**
 
 ## API Design
 

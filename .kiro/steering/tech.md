@@ -6,9 +6,11 @@
 - **Custom CSS** for minimal styling
 
 ## Database & APIs
-- **PostgreSQL** via `pg` driver (v8.12.0) with connection pooling
+- **PostgreSQL** via `pg` driver (v8.12.0) with connection pooling (read-only access)
 - **OpenRouter API** for AI integration (Google Gemini 2.5 Pro)
 - **Zod 3.23.8** for schema validation and type safety
+
+**Database Access Policy: Read-only. All queries are SELECT statements for analytics and reporting.**
 
 ## Development Tools
 - **ESLint 8.57.0** with Next.js configuration
