@@ -18,6 +18,7 @@ type PersonaReport = {
 
 type MultiStyleSummaryGeneratorProps = {
   chatId?: string;
+  threadId?: string;
   date: string;
 };
 
@@ -371,7 +372,7 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
   );
 }
 
-export function MultiStyleSummaryGenerator({ chatId, date }: MultiStyleSummaryGeneratorProps) {
+export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyleSummaryGeneratorProps) {
   const [reports, setReports] = useState<PersonaReport[]>(
     PERSONAS.map(persona => ({
       persona: persona.key,
@@ -394,6 +395,9 @@ export function MultiStyleSummaryGenerator({ chatId, date }: MultiStyleSummaryGe
       params.set('days', '1');
       if (chatId) {
         params.set('chat_id', chatId);
+      }
+      if (threadId) {
+        params.set('thread_id', threadId);
       }
       params.set('persona', persona);
       params.set('t', String(Date.now()));
@@ -432,6 +436,9 @@ export function MultiStyleSummaryGenerator({ chatId, date }: MultiStyleSummaryGe
         params.set('days', '1');
         if (chatId) {
           params.set('chat_id', chatId);
+        }
+        if (threadId) {
+          params.set('thread_id', threadId);
         }
         params.set('persona', personaConfig.key);
         params.set('t', String(Date.now()));

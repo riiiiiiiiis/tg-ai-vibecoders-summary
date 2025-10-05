@@ -1,14 +1,15 @@
 import { getPool } from "./db";
-import type { OverviewResponse, SeriesPoint, TopUser } from "./types";
+import type { OverviewResponse, SeriesPoint, TopUser, ForumTopic } from "./types";
 
 type OverviewParams = {
   chatId?: string;
+  threadId?: string;
   window?: 1 | 7;
   from?: Date;
   to?: Date;
 };
 
-export async function fetchOverview({ chatId, window = 1, from, to }: OverviewParams): Promise<OverviewResponse> {
+export async function fetchOverview({ chatId, threadId, window = 1, from, to }: OverviewParams): Promise<OverviewResponse> {
   const pool = getPool();
   const conditions: string[] = [];
   const params: Array<string | Date | number> = [];
@@ -26,6 +27,11 @@ export async function fetchOverview({ chatId, window = 1, from, to }: OverviewPa
   if (chatId) {
     conditions.push(`chat_id = $${params.length + 1}`);
     params.push(chatId);
+  }
+
+  if (threadId) {
+    conditions.push(`message_thread_id = $${params.length + 1}`);
+    params.push(threadId);
   }
 
   const whereClause = conditions.join(" AND ");
@@ -111,11 +117,13 @@ export async function fetchOverview({ chatId, window = 1, from, to }: OverviewPa
 
 export async function fetchMessagesText({
   chatId,
+  threadId,
   from,
   to,
   limit = 5000
 }: {
   chatId?: string;
+  threadId?: string;
   from: Date;
   to: Date;
   limit?: number;
@@ -139,6 +147,11 @@ export async function fetchMessagesText({
     params.push(chatId);
   }
 
+  if (threadId) {
+    where.push(`m.message_thread_id = $${params.length + 1}`);
+    params.push(threadId);
+  }
+
   const sql = `
     SELECT m.text
     FROM messages m
@@ -154,11 +167,13 @@ export async function fetchMessagesText({
 
 export async function fetchMessagesWithAuthors({
   chatId,
+  threadId,
   from,
   to,
   limit = 5000
 }: {
   chatId?: string;
+  threadId?: string;
   from: Date;
   to: Date;
   limit?: number;
@@ -180,6 +195,11 @@ export async function fetchMessagesWithAuthors({
   if (chatId) {
     where.push(`m.chat_id = $${params.length + 1}`);
     params.push(chatId);
+  }
+
+  if (threadId) {
+    where.push(`m.message_thread_id = $${params.length + 1}`);
+    params.push(threadId);
   }
 
   const sql = `
@@ -214,6 +234,66 @@ function inferBucketUnit(from: Date, to: Date): "hour" | "day" {
   const diffMs = to.getTime() - from.getTime();
   const diffDays = diffMs / (1000 * 60 * 60 * 24);
   return diffDays > 2 ? "day" : "hour";
+}
+
+export async function fetchForumTopics({
+  chatId,
+  window = 1
+}: {
+  chatId?: string;
+  window?: 1 | 7;
+}): Promise<ForumTopic[]> {
+  const pool = getPool();
+  
+  try {
+    const params: Array<string | number> = [`${window} days`];
+    const where: string[] = [
+      "sent_at >= NOW() - $1::interval",
+      "message_thread_id IS NOT NULL"
+    ];
+
+    if (chatId) {
+      where.push(`chat_id = $${params.length + 1}`);
+      params.push(chatId);
+    }
+
+    const sql = `
+      SELECT 
+        message_thread_id,
+        COUNT(*) as message_count,
+        MAX(sent_at) as last_message_at,
+        (SELECT text FROM messages m2 
+         WHERE m2.message_thread_id = m.message_thread_id 
+         AND m2.chat_id = m.chat_id
+         ORDER BY sent_at ASC LIMIT 1) as topic_name
+      FROM messages m
+      WHERE ${where.join(" AND ")}
+      GROUP BY message_thread_id, chat_id
+      ORDER BY message_count DESC
+      LIMIT 50
+    `;
+
+    const { rows } = await pool.query<{
+      message_thread_id: string;
+      message_count: string;
+      last_message_at: Date;
+      topic_name: string | null;
+    }>(sql, params);
+
+    return rows.map((row) => ({
+      threadId: row.message_thread_id,
+      topicName: row.topic_name || `Тема ${row.message_thread_id}`,
+      messageCount: Number(row.message_count),
+      lastMessageAt: row.last_message_at.toISOString()
+    }));
+  } catch (error: any) {
+    if (error?.message?.includes("column") && error?.message?.includes("message_thread_id")) {
+      console.warn("[DB] Forum topics not available (message_thread_id column missing)");
+      return [];
+    }
+    console.error("[DB] fetchForumTopics error:", error);
+    return [];
+  }
 }
 
 function buildUserLabel(firstName: string | null, lastName: string | null, username: string | null): string {

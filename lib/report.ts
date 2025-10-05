@@ -5,18 +5,19 @@ import type { ReportPayload, PersonaReportPayload } from "./types";
 type ReportRequest = {
   date?: string;
   chatId?: string;
+  threadId?: string;
   days?: 1 | 7;
   persona?: PersonaType;
 };
 
-export async function buildDailyReport({ date, chatId, days, persona }: ReportRequest): Promise<ReportPayload | PersonaReportPayload> {
+export async function buildDailyReport({ date, chatId, threadId, days, persona }: ReportRequest): Promise<ReportPayload | PersonaReportPayload> {
   const { from, to } = computeRange({ date, days });
-  const metrics = await fetchOverview({ chatId, from, to });
+  const metrics = await fetchOverview({ chatId, threadId, from, to });
   const dateForAi = date ?? new Date().toISOString().slice(0, 10);
   
   try {
-    console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId });
-    const entries = await fetchMessagesWithAuthors({ chatId, from, to, limit: 5000 });
+    console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId, threadId });
+    const entries = await fetchMessagesWithAuthors({ chatId, threadId, from, to, limit: 5000 });
     console.log("[Report] fetched messages", { count: entries.length, limit: 5000 });
     const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 80000);
     const raw = entries

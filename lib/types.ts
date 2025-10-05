@@ -9,6 +9,13 @@ export type SeriesPoint = {
   messageCount: number;
 };
 
+export type ForumTopic = {
+  threadId: string;
+  topicName: string;
+  messageCount: number;
+  lastMessageAt: string;
+};
+
 export type OverviewResponse = {
   totalMessages: number;
   uniqueUsers: number;
