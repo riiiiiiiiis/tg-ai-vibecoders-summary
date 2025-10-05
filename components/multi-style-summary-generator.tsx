@@ -14,6 +14,9 @@ type PersonaReport = {
   data: SummaryData | null;
   isLoading: boolean;
   error: string | null;
+  isSending?: boolean;
+  sendSuccess?: string | null;
+  sendError?: string | null;
 };
 
 type MultiStyleSummaryGeneratorProps = {
@@ -322,7 +325,9 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
           <p style={{ 
             lineHeight: '1.6', 
             margin: 0,
-            color: '#374151'
+            color: '#374151',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word'
           }}>
             {data.summary}
           </p>
@@ -481,6 +486,65 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
   const getPersonaConfig = (persona: PersonaType) => 
     PERSONAS.find(p => p.key === persona) || PERSONAS[0];
 
+  const sendToTelegram = async (persona: PersonaType, reportData: any) => {
+    setReports(prev => prev.map(r => 
+      r.persona === persona 
+        ? { ...r, isSending: true, sendSuccess: null, sendError: null }
+        : r
+    ));
+
+    try {
+      const params = new URLSearchParams({ date });
+      params.set('days', '1');
+      if (chatId) {
+        params.set('chat_id', chatId);
+      }
+      if (threadId) {
+        params.set('thread_id', threadId);
+      }
+      params.set('persona', persona);
+
+      const response = await fetch(`/api/send-to-telegram?${params}`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date,
+          persona,
+          ...reportData
+        }),
+      });
+      const result = await response.json();
+
+      if (!result.ok) {
+        throw new Error(result.error || 'Не удалось отправить в Telegram');
+      }
+
+      setReports(prev => prev.map(r => 
+        r.persona === persona 
+          ? { ...r, isSending: false, sendSuccess: result.message || 'Отчет успешно отправлен в Telegram!' }
+          : r
+      ));
+
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setReports(prev => prev.map(r => 
+          r.persona === persona 
+            ? { ...r, sendSuccess: null }
+            : r
+        ));
+      }, 5000);
+    } catch (err) {
+      setReports(prev => prev.map(r => 
+        r.persona === persona 
+          ? { ...r, isSending: false, sendError: err instanceof Error ? err.message : 'Произошла ошибка при отправке' }
+          : r
+      ));
+    }
+  };
+
   return (
     <div className="content-section">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -601,9 +665,61 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
               )}
 
               {report.data && (
-                <div style={{ fontSize: '0.9rem' }}>
-                  {renderReportContent(report.data, report.persona, config.color)}
-                </div>
+                <>
+                  <div style={{ fontSize: '0.9rem' }}>
+                    {renderReportContent(report.data, report.persona, config.color)}
+                  </div>
+                  
+                  {/* Telegram send button */}
+                  <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
+                    <button
+                      onClick={() => sendToTelegram(report.persona, report.data)}
+                      disabled={report.isSending}
+                      style={{
+                        width: '100%',
+                        padding: '0.75rem',
+                        backgroundColor: report.isSending ? '#94a3b8' : '#0088cc',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        cursor: report.isSending ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: '600',
+                        transition: 'background-color 0.2s'
+                      }}
+                    >
+                      {report.isSending ? '📤 Отправляю...' : '📤 Отправить в Telegram'}
+                    </button>
+                    
+                    {report.sendSuccess && (
+                      <div style={{
+                        marginTop: '0.75rem',
+                        padding: '0.75rem',
+                        backgroundColor: '#d4edda',
+                        color: '#155724',
+                        borderRadius: '6px',
+                        border: '1px solid #c3e6cb',
+                        fontSize: '0.85rem'
+                      }}>
+                        ✅ {report.sendSuccess}
+                      </div>
+                    )}
+                    
+                    {report.sendError && (
+                      <div style={{
+                        marginTop: '0.75rem',
+                        padding: '0.75rem',
+                        backgroundColor: '#f8d7da',
+                        color: '#721c24',
+                        borderRadius: '6px',
+                        border: '1px solid #f5c6cb',
+                        fontSize: '0.85rem'
+                      }}>
+                        ❌ {report.sendError}
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
 
               {!report.data && !report.isLoading && !report.error && (

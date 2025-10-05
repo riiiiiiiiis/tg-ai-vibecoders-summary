@@ -173,15 +173,23 @@ export async function generateReportWithPersona({
         }
       },
       temperature: 0.6,
-      maxOutputTokens: 1600
+      maxOutputTokens: 3000
     });
 
     if (!response) return null;
 
-    const json = JSON.parse(response);
+    let json;
+    try {
+      json = JSON.parse(response);
+    } catch (parseError) {
+      console.error(`Failed to parse JSON response for ${persona}:`, parseError);
+      console.error(`Response preview:`, response.substring(0, 500));
+      return null;
+    }
+
     const parsed = personaSchema.safeParse(json);
     if (!parsed.success) {
-      console.error(`Failed to parse OpenRouter ${persona} response`, parsed.error);
+      console.error(`Failed to validate OpenRouter ${persona} response`, parsed.error);
       return null;
     }
     return parsed.data;

@@ -49,6 +49,7 @@
 - `ai.ts` - OpenRouter integration with structured JSON responses
 - `report.ts` - Business logic orchestrating data + AI
 - `reportSchemas.ts` - Zod validation for AI response structure
+- `telegram.ts` - Telegram Bot API integration for sending reports
 
 **Note: All database operations are read-only. The application only executes SELECT queries for analytics purposes.**
 
@@ -57,6 +58,7 @@
 ### Endpoints
 - `GET /api/overview` - Dashboard metrics with optional chat_id and days filters
 - `GET /api/report/[kind]` - AI reports (generate, insights, preview)
+- `POST /api/send-to-telegram` - Send AI reports to Telegram chat
 
 ### Query Parameters
 - `chat_id` - Filter by specific Telegram chat

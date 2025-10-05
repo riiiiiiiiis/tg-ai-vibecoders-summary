@@ -23,9 +23,10 @@
 
 #### Acceptance Criteria
 
-1. WHEN система запускается THEN она SHALL проверить наличие TELEGRAM_BOT_TOKEN в переменных окружения
-2. IF TELEGRAM_BOT_TOKEN отсутствует THEN функция отправки SHALL быть недоступна
-3. WHEN бот отправляет сообщение THEN он SHALL использовать токен из переменных окружения для аутентификации
+1. WHEN система запускается THEN она SHALL проверить наличие TELEGRAM_BOT_TOKEN и TELEGRAM_CHAT_ID в переменных окружения
+2. IF TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID отсутствует THEN функция отправки SHALL быть недоступна
+3. WHEN бот отправляет сообщение THEN он SHALL использовать токен и chat_id из переменных окружения для аутентификации
+4. IF TELEGRAM_THREAD_ID установлен THEN бот SHALL отправлять сообщения в указанный тред форума
 
 ### Requirement 3
 

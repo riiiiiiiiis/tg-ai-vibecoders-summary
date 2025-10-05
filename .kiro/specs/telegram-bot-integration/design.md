@@ -23,10 +23,15 @@
 
 ### 1. Frontend Component Updates
 
-**SummaryGenerator Component** (уже частично реализован):
-- Добавлена кнопка "📤 Отправить в Telegram"
-- Состояния: `isSending`, `sendSuccess`, `sendError`
-- Функция `sendToTelegram()` для вызова API
+**MultiStyleSummaryGenerator Component** (реализовано):
+- Добавлена кнопка "📤 Отправить в Telegram" для каждого сгенерированного отчета
+- Состояния: `isSending`, `sendSuccess`, `sendError` для каждой персоны
+- Функция `sendToTelegram(persona, reportData)` для вызова API
+- Поддержка всех 6 типов персон (curator, twitter, reddit, business, psychologist, creative)
+
+**SummaryGenerator Component** (legacy, не используется на страницах):
+- Простая версия с одной кнопкой генерации
+- Также имеет кнопку "📤 Отправить в Telegram"
 
 ### 2. New API Endpoint
 
@@ -75,6 +80,8 @@ type TelegramResponse = {
 
 **New Variables**:
 - `TELEGRAM_BOT_TOKEN` (required): Токен бота от BotFather
+- `TELEGRAM_CHAT_ID` (required): ID чата для отправки сообщений
+- `TELEGRAM_THREAD_ID` (optional): ID треда форума для отправки в конкретную тему
 - `TELEGRAM_API_URL` (optional): URL Telegram API (default: https://api.telegram.org)
 
 ## Data Models
@@ -117,8 +124,9 @@ Telegram имеет лимит 4096 символов на сообщение. С
 ## Error Handling
 
 ### Configuration Errors
-- **Missing Token**: Если `TELEGRAM_BOT_TOKEN` не установлен → возврат 503 с сообщением о конфигурации
-- **Invalid Token**: Если токен неверный → возврат 401 с сообщением об ошибке авторизации
+- **Missing Credentials**: Если `TELEGRAM_BOT_TOKEN` или `TELEGRAM_CHAT_ID` не установлены → возврат 500 с сообщением о конфигурации
+- **Invalid Token**: Если токен неверный → возврат с сообщением об ошибке авторизации
+- **Invalid Thread ID**: Если `TELEGRAM_THREAD_ID` указан неверно → Telegram API вернет ошибку
 
 ### Runtime Errors
 - **Network Issues**: Timeout или connection errors → возврат 503 с сообщением о временной недоступности

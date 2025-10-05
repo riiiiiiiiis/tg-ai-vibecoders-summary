@@ -43,6 +43,9 @@ npm run lint         # ESLint validation
 - `OPENROUTER_TIMEOUT_MS` - Request timeout override (default: 20000ms)
 - `LLM_DEBUG_VERBOSE` - Set to "1" for verbose AI logging
 - `LLM_TEXT_CHAR_BUDGET` - Character limit for AI text analysis (default: 80000)
+- `TELEGRAM_BOT_TOKEN` - Telegram bot token for sending reports to chat
+- `TELEGRAM_CHAT_ID` - Target Telegram chat ID for report delivery
+- `TELEGRAM_THREAD_ID` - Optional thread ID for forum topics
 
 ## Next.js Configuration
 - Experimental typed routes enabled

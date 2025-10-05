@@ -23,6 +23,8 @@ A Next.js 15 read-only analytics application that provides real-time analytics a
 - **Russian Language Output** - AI generates friendly, conversational Russian content
 - **User Profiling** - AI creates psychological profiles of chat participants
 - **Content Suggestions** - Themes and engagement ideas based on chat dynamics
+- **Telegram Integration** - Send AI reports directly to Telegram chats with one click
+- **Multiple Personas** - 6 different expert perspectives (Curator, Twitter, Reddit, Business, Psychologist, Creative)
 
 ### Technical Implementation
 - **Server-Side Rendering** - Dashboard pages pre-render with database queries
@@ -49,6 +51,7 @@ A Next.js 15 read-only analytics application that provides real-time analytics a
 - `OPENROUTER_API_KEY` - API authentication token
 - `OPENROUTER_MODEL` - Model identifier (e.g., `google/gemini-2.5-pro`)
 - Optional: `OPENROUTER_TIMEOUT_MS`, `LLM_DEBUG_VERBOSE`, `LLM_TEXT_CHAR_BUDGET`
+- Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_THREAD_ID` (for sending reports to Telegram)
 
 ## User Interface Language
 
