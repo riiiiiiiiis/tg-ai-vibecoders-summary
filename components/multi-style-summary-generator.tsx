@@ -573,11 +573,7 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
         </button>
       </div>
 
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', 
-        gap: '1.5rem' 
-      }}>
+      <div className="persona-grid">
         {reports.map(report => {
           const config = getPersonaConfig(report.persona);
           return (

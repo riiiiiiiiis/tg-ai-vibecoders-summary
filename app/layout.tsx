@@ -15,7 +15,7 @@ export default function RootLayout({
     <html lang="ru">
       <body>
         <header>
-          <div>
+          <div className="header-container">
             <h1>Telegram Dashboard</h1>
             <nav>
               <a href="/">24 часа</a>

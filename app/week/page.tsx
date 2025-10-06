@@ -20,7 +20,7 @@ export default async function DashboardWeek({ searchParams }: PageProps) {
   const date = new Date().toISOString().slice(0, 10);
 
   return (
-    <div>
+    <div className="main-container">
       <ForumTopics chatId={chatId} currentThreadId={threadId} days={7} />
       
       <div className="metrics-grid">

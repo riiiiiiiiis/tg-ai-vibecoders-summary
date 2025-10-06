@@ -17,12 +17,32 @@ header {
   padding: 1rem;
 }
 
-header div {
+/* Adaptive header container */
+.header-container {
   max-width: 1200px;
   margin: 0 auto;
+  padding: 0 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+@media (min-width: 1280px) {
+  .header-container {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .header-container {
+    max-width: 85%;
+  }
+}
+
+@media (min-width: 2560px) {
+  .header-container {
+    max-width: 80%;
+  }
 }
 
 header h1 {
@@ -39,18 +59,61 @@ nav a:hover {
   color: #333;
 }
 
-main {
+/* Adaptive main container */
+.main-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem 1rem;
 }
 
-/* Basic grid for metrics */
+@media (min-width: 1280px) {
+  .main-container {
+    max-width: 1400px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .main-container {
+    max-width: 85%;
+  }
+}
+
+@media (min-width: 2560px) {
+  .main-container {
+    max-width: 80%;
+  }
+}
+
+/* Adaptive grid for metrics */
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .metrics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1920px) {
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  }
+}
+
+@media (min-width: 2560px) {
+  .metrics-grid {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
 }
 
 .metric-card {
@@ -70,17 +133,29 @@ main {
   font-weight: 600;
 }
 
-/* Basic layout for content sections */
+/* Adaptive layout for content sections */
 .content-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 2rem;
   margin-bottom: 2rem;
+  grid-template-columns: 1fr;
 }
 
-@media (max-width: 768px) {
+@media (min-width: 768px) {
   .content-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (min-width: 1920px) {
+  .content-grid {
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  }
+}
+
+@media (min-width: 2560px) {
+  .content-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -233,5 +308,30 @@ rum Topics Styling */
   .topic-button {
     padding: 0.4rem 0.75rem;
     font-size: 0.8rem;
+  }
+}
+
+/* Adaptive grid for persona cards */
+.persona-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1280px) {
+  .persona-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1920px) {
+  .persona-grid {
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+  }
+}
+
+@media (min-width: 2560px) {
+  .persona-grid {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

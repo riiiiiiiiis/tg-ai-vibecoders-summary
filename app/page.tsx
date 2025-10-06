@@ -21,7 +21,7 @@ export default async function Dashboard24h({ searchParams }: PageProps) {
   const isoDate = date.toISOString().slice(0, 10);
 
   return (
-    <div>
+    <div className="main-container">
       <ForumTopics chatId={chatId} currentThreadId={threadId} days={1} />
       
       <div className="metrics-grid">
