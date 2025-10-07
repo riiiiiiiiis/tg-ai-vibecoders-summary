@@ -1,5 +1,6 @@
-import { generateStructuredReport, generateReportFromText, generateReportWithPersona, PersonaType } from "./ai";
-import { fetchOverview, fetchMessagesWithAuthors } from "./queries";
+import { generateStructuredReport, generateReportFromText, generateReportWithPersona, generateDailySummaryReport, PersonaType } from "./ai";
+import { fetchOverview, fetchMessagesWithAuthors, fetchMessagesWithLinks } from "./queries";
+import { getCurrentLocalDate } from "./date-utils";
 import type { ReportPayload, PersonaReportPayload } from "./types";
 
 type ReportRequest = {
@@ -13,7 +14,7 @@ type ReportRequest = {
 export async function buildDailyReport({ date, chatId, threadId, days, persona }: ReportRequest): Promise<ReportPayload | PersonaReportPayload> {
   const { from, to } = computeRange({ date, days });
   const metrics = await fetchOverview({ chatId, threadId, from, to });
-  const dateForAi = date ?? new Date().toISOString().slice(0, 10);
+  const dateForAi = date ?? getCurrentLocalDate();
   
   try {
     console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId, threadId });
@@ -37,17 +38,41 @@ export async function buildDailyReport({ date, chatId, threadId, days, persona }
     console.log("[Report] strategy", { used: blob ? "text-based" : "metrics-fallback" });
 
     if (persona) {
-      const use = await generateReportWithPersona({ date: dateForAi, chatId, metrics, text: blob, persona });
-      console.log("[Report] result source", { source: `persona-${persona}` });
-      if (!use) return null;
-      
-      return {
-        date: dateForAi,
-        chatId,
-        metrics,
-        persona,
-        data: use
-      };
+      // Для daily-summary персоны используем специальные данные о ссылках
+      if (persona === 'daily-summary') {
+        const linksData = await fetchMessagesWithLinks({ chatId, threadId, from, to, limit: 500 });
+        console.log("[Report] fetched messages with links", { count: linksData.length });
+        
+        const use = await generateDailySummaryReport({ 
+          date: dateForAi, 
+          chatId, 
+          metrics, 
+          links: linksData
+        });
+        
+        console.log("[Report] result source", { source: `persona-${persona}-with-links` });
+        if (!use) return null;
+        
+        return {
+          date: dateForAi,
+          chatId,
+          metrics,
+          persona,
+          data: use
+        };
+      } else {
+        const use = await generateReportWithPersona({ date: dateForAi, chatId, metrics, text: blob, persona });
+        console.log("[Report] result source", { source: `persona-${persona}` });
+        if (!use) return null;
+        
+        return {
+          date: dateForAi,
+          chatId,
+          metrics,
+          persona,
+          data: use
+        };
+      }
     } else {
       const use = blob
         ? await generateReportFromText({ date: dateForAi, chatId, metrics, text: blob })

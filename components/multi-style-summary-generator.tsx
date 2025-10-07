@@ -17,6 +17,8 @@ type PersonaReport = {
   isSending?: boolean;
   sendSuccess?: string | null;
   sendError?: string | null;
+  showPreview?: boolean;
+  previewText?: string | null;
 };
 
 type MultiStyleSummaryGeneratorProps = {
@@ -26,6 +28,12 @@ type MultiStyleSummaryGeneratorProps = {
 };
 
 const PERSONAS = [
+  { 
+    key: 'daily-summary' as PersonaType, 
+    title: '📊 Дневной суммаризатор', 
+    description: 'Структурированный отчет дня',
+    color: '#0d9488'
+  },
   { 
     key: 'curator' as PersonaType, 
     title: '🎯 Куратор-реалист', 
@@ -66,6 +74,282 @@ const PERSONAS = [
 
 // Функция для рендера разных типов контента в зависимости от персоны
 function renderReportContent(data: any, persona: PersonaType, color: string) {
+  if (persona === 'daily-summary') {
+    return (
+      <>
+        {data.day_overview && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🌅 Обзор дня
+            </h4>
+            <p style={{ 
+              lineHeight: '1.6', 
+              margin: 0,
+              color: '#374151',
+              fontStyle: 'italic'
+            }}>
+              {data.day_overview}
+            </p>
+          </div>
+        )}
+        
+        {data.key_events && data.key_events.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              ✈️ Ключевые события
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.key_events.map((event: {time: string, event: string, importance: string}, index: number) => (
+                <li key={`event-${index}`} style={{ marginBottom: '0.75rem', color: '#374151' }}>
+                  <strong style={{ color: color }}>{event.time}</strong>
+                  {event.importance === 'high' && <span style={{color: '#dc2626', fontSize: '0.8rem'}}> 🔴</span>}
+                  {event.importance === 'medium' && <span style={{color: '#d97706', fontSize: '0.8rem'}}> 🟡</span>}
+                  {event.importance === 'low' && <span style={{color: '#059669', fontSize: '0.8rem'}}> 🟢</span>}
+                  <br />
+                  <span style={{ fontSize: '0.9rem' }}>{event.event}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.participant_highlights && data.participant_highlights.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🎆 Ключевые участники
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.participant_highlights.map((participant: {name: string, contribution: string, impact: string}, index: number) => (
+                <li key={`participant-${index}`} style={{ marginBottom: '0.75rem', color: '#374151' }}>
+                  <strong style={{ color: color }}>{participant.name}</strong>
+                  <br />
+                  <span style={{ fontSize: '0.85rem' }}><em>{participant.contribution}</em></span>
+                  <br />
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Влияние: {participant.impact}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.shared_links && data.shared_links.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🔗 Опубликованные ссылки ({data.shared_links.length})
+            </h4>
+            <div style={{ 
+              maxHeight: '300px', 
+              overflowY: 'auto', 
+              border: '1px solid #e2e8f0', 
+              borderRadius: '6px',
+              padding: '0.5rem'
+            }}>
+              {data.shared_links.map((link: {url: string, domain: string, shared_by: string, shared_at: string, context?: string, category?: string}, index: number) => (
+                <div key={`link-${index}`} style={{ 
+                  marginBottom: '0.75rem', 
+                  padding: '0.5rem',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '4px',
+                  borderLeft: `3px solid ${color}`
+                }}>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                    {link.shared_at} • <strong style={{ color: color }}>{link.shared_by}</strong>
+                    {link.category && <span style={{ marginLeft: '0.5rem', padding: '0.1rem 0.4rem', backgroundColor: color, color: 'white', borderRadius: '3px', fontSize: '0.7rem' }}>{link.category}</span>}
+                  </div>
+                  <div style={{ marginBottom: '0.25rem' }}>
+                    <strong style={{ color: '#1f2937' }}>{link.domain}</strong>
+                  </div>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" style={{ 
+                    color: '#2563eb', 
+                    fontSize: '0.85rem',
+                    textDecoration: 'none',
+                    wordBreak: 'break-all'
+                  }}>
+                    {link.url.length > 60 ? `${link.url.substring(0, 60)}...` : link.url}
+                  </a>
+                  {link.context && (
+                    <div style={{ fontSize: '0.8rem', color: '#4b5563', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                      {link.context}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {data.link_summary && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              📊 Статистика ссылок
+            </h4>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '1rem',
+              backgroundColor: '#f8fafc',
+              padding: '1rem',
+              borderRadius: '6px',
+              fontSize: '0.85rem'
+            }}>
+              <div>
+                <strong>Всего ссылок:</strong> {data.link_summary.total_links}
+                <br />
+                <strong>Уникальных доменов:</strong> {data.link_summary.unique_domains.length}
+              </div>
+              <div>
+                <strong>Топ домены:</strong><br />
+                {data.link_summary.unique_domains.slice(0, 3).map((domain: string, idx: number) => (
+                  <span key={`domain-${idx}`} style={{ display: 'block', color: '#4b5563' }}>• {domain}</span>
+                ))}
+              </div>
+            </div>
+            
+            {data.link_summary.top_sharers && data.link_summary.top_sharers.length > 0 && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <strong style={{ color: color }}>Топ шерщики ссылок:</strong>
+                <div style={{ marginTop: '0.5rem' }}>
+                  {data.link_summary.top_sharers.map((sharer: {name: string, count: number}, idx: number) => (
+                    <span key={`sharer-${idx}`} style={{ 
+                      display: 'inline-block', 
+                      margin: '0.2rem 0.5rem 0.2rem 0',
+                      padding: '0.25rem 0.5rem',
+                      backgroundColor: '#e0f2fe',
+                      color: '#0277bd',
+                      borderRadius: '12px',
+                      fontSize: '0.8rem'
+                    }}>
+                      {sharer.name} ({sharer.count})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {data.link_summary.categories && data.link_summary.categories.length > 0 && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <strong style={{ color: color }}>По категориям:</strong>
+                <div style={{ marginTop: '0.5rem' }}>
+                  {data.link_summary.categories.map((cat: {name: string, count: number, examples: string[]}, idx: number) => (
+                    <div key={`category-${idx}`} style={{ marginBottom: '0.5rem' }}>
+                      <span style={{ 
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: color,
+                        color: 'white',
+                        borderRadius: '4px',
+                        fontSize: '0.8rem',
+                        marginRight: '0.5rem'
+                      }}>
+                        {cat.name} ({cat.count})
+                      </span>
+                      {cat.examples && cat.examples.length > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                          {cat.examples.slice(0, 2).join(', ')}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {data.discussion_topics && data.discussion_topics.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              💬 Обсуждения
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.discussion_topics.map((topic: string, index: number) => (
+                <li key={`topic-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {topic}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.daily_metrics && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              📊 Метрики дня
+            </h4>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '1fr 1fr', 
+              gap: '0.5rem', 
+              backgroundColor: '#f8fafc',
+              padding: '0.75rem',
+              borderRadius: '6px',
+              fontSize: '0.85rem'
+            }}>
+              <div><strong>Активность:</strong> {data.daily_metrics.activity_level}</div>
+              <div><strong>Качество:</strong> {data.daily_metrics.engagement_quality}</div>
+              <div><strong>Настроение:</strong> {data.daily_metrics.mood_tone}</div>
+              <div><strong>Продуктивность:</strong> {data.daily_metrics.productivity}</div>
+            </div>
+          </div>
+        )}
+        
+        {data.next_day_forecast && data.next_day_forecast.length > 0 && (
+          <div>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🔮 Прогноз на завтра
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.next_day_forecast.map((forecast: string, index: number) => (
+                <li key={`forecast-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {forecast}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    );
+  }
+  
   if (persona === 'business') {
     return (
       <>
@@ -486,10 +770,69 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
   const getPersonaConfig = (persona: PersonaType) => 
     PERSONAS.find(p => p.key === persona) || PERSONAS[0];
 
-  const sendToTelegram = async (persona: PersonaType, reportData: any) => {
+  const showTelegramPreview = async (persona: PersonaType, reportData: any) => {
     setReports(prev => prev.map(r => 
       r.persona === persona 
-        ? { ...r, isSending: true, sendSuccess: null, sendError: null }
+        ? { ...r, isSending: true, sendSuccess: null, sendError: null, showPreview: false, previewText: null }
+        : r
+    ));
+
+    try {
+      const params = new URLSearchParams({ date });
+      params.set('days', '1');
+      if (chatId) {
+        params.set('chat_id', chatId);
+      }
+      if (threadId) {
+        params.set('thread_id', threadId);
+      }
+      params.set('persona', persona);
+      params.set('preview', 'true'); // Добавляем параметр для предпросмотра
+
+      const response = await fetch(`/api/send-to-telegram?${params}`, {
+        method: 'POST',
+        cache: 'no-store',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          date,
+          persona,
+          ...reportData
+        }),
+      });
+      const result = await response.json();
+
+      if (!result.ok) {
+        throw new Error(result.error || 'Не удалось получить предпросмотр');
+      }
+
+      setReports(prev => prev.map(r => 
+        r.persona === persona 
+          ? { ...r, isSending: false, showPreview: true, previewText: result.preview || result.message }
+          : r
+      ));
+    } catch (err) {
+      setReports(prev => prev.map(r => 
+        r.persona === persona 
+          ? { ...r, isSending: false, sendError: err instanceof Error ? err.message : 'Произошла ошибка при получении предпросмотра' }
+          : r
+      ));
+    }
+  };
+
+  const closePreview = (persona: PersonaType) => {
+    setReports(prev => prev.map(r => 
+      r.persona === persona 
+        ? { ...r, showPreview: false, previewText: null }
+        : r
+    ));
+  };
+
+  const confirmSendToTelegram = async (persona: PersonaType, reportData: any) => {
+    setReports(prev => prev.map(r => 
+      r.persona === persona 
+        ? { ...r, isSending: true, sendSuccess: null, sendError: null, showPreview: false }
         : r
     ));
 
@@ -551,7 +894,7 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
         <div>
           <h2>Анализ в разных стилях</h2>
           <p style={{ color: '#666', fontSize: '0.9rem', margin: '0.5rem 0 0 0' }}>
-            Получите 6 вариантов отчета от разных экспертов — от честного до циничного
+            Получите 7 вариантов отчета от разных экспертов — от структурированного до циничного
           </p>
         </div>
         <button 
@@ -669,7 +1012,7 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
                   {/* Telegram send button */}
                   <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid #e2e8f0' }}>
                     <button
-                      onClick={() => sendToTelegram(report.persona, report.data)}
+                      onClick={() => showTelegramPreview(report.persona, report.data)}
                       disabled={report.isSending}
                       style={{
                         width: '100%',
@@ -684,7 +1027,7 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
                         transition: 'background-color 0.2s'
                       }}
                     >
-                      {report.isSending ? '📤 Отправляю...' : '📤 Отправить в Telegram'}
+                      {report.isSending ? '🔎 Загрузка...' : '👁️ Предпросмотр и отправить'}
                     </button>
                     
                     {report.sendSuccess && (
@@ -712,6 +1055,100 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
                         fontSize: '0.85rem'
                       }}>
                         ❌ {report.sendError}
+                      </div>
+                    )}
+                    
+                    {/* Preview Modal */}
+                    {report.showPreview && report.previewText && (
+                      <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000
+                      }}>
+                        <div style={{
+                          backgroundColor: 'white',
+                          borderRadius: '12px',
+                          padding: '2rem',
+                          maxWidth: '600px',
+                          width: '90%',
+                          maxHeight: '80vh',
+                          overflow: 'auto',
+                          boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+                        }}>
+                          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h3 style={{ margin: 0, color: config.color }}>👁️ Предпросмотр сообщения</h3>
+                            <button
+                              onClick={() => closePreview(report.persona)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '1.5rem',
+                                cursor: 'pointer',
+                                color: '#64748b'
+                              }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          
+                          <div style={{
+                            padding: '1rem',
+                            backgroundColor: '#f8fafc',
+                            borderRadius: '8px',
+                            marginBottom: '1.5rem',
+                            maxHeight: '50vh',
+                            overflow: 'auto',
+                            whiteSpace: 'pre-wrap',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                            lineHeight: '1.5',
+                            border: '1px solid #e2e8f0'
+                          }}>
+                            {report.previewText}
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                              onClick={() => closePreview(report.persona)}
+                              style={{
+                                flex: 1,
+                                padding: '0.75rem',
+                                backgroundColor: '#e2e8f0',
+                                color: '#334155',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                fontWeight: '600'
+                              }}
+                            >
+                              ❌ Отмена
+                            </button>
+                            <button
+                              onClick={() => confirmSendToTelegram(report.persona, report.data)}
+                              style={{
+                                flex: 1,
+                                padding: '0.75rem',
+                                backgroundColor: config.color,
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                fontSize: '0.9rem',
+                                fontWeight: '600'
+                              }}
+                            >
+                              ✅ Отправить
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>

@@ -1,4 +1,4 @@
-import { reportSchema, businessReportSchema, psychologyReportSchema, creativeReportSchema, type ParsedReport, type BusinessReport, type PsychologyReport, type CreativeReport, type AnyReport } from "./reportSchemas";
+import { reportSchema, businessReportSchema, psychologyReportSchema, creativeReportSchema, dailySummaryReportSchema, type ParsedReport, type BusinessReport, type PsychologyReport, type CreativeReport, type DailySummaryReport, type AnyReport } from "./reportSchemas";
 import type { OverviewResponse } from "./types";
 
 const VERBOSE = process.env.LLM_DEBUG_VERBOSE === "1";
@@ -118,7 +118,7 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
   }
 }
 
-export type PersonaType = 'curator' | 'business' | 'psychologist' | 'creative' | 'twitter' | 'reddit';
+export type PersonaType = 'curator' | 'business' | 'psychologist' | 'creative' | 'twitter' | 'reddit' | 'daily-summary';
 
 export async function generateReportWithPersona({
   date,
@@ -207,6 +207,8 @@ function getPersonaSchema(persona: PersonaType) {
       return psychologyReportSchema;
     case 'creative':
       return creativeReportSchema;
+    case 'daily-summary':
+      return dailySummaryReportSchema;
     case 'curator':
     case 'twitter':
     case 'reddit':
@@ -264,6 +266,110 @@ function getPersonaJsonSchema(persona: PersonaType) {
           trend_opportunities: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 }
         },
         required: ["creative_temperature", "viral_concepts", "content_formats", "trend_opportunities"],
+        additionalProperties: false
+      };
+    case 'daily-summary':
+      return {
+        type: "object",
+        properties: {
+          day_overview: { type: "string", minLength: 100, maxLength: 300 },
+          key_events: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                time: { type: "string" },
+                event: { type: "string" },
+                importance: { type: "string", enum: ["high", "medium", "low"] }
+              },
+              required: ["time", "event", "importance"],
+              additionalProperties: false
+            },
+            minItems: 3,
+            maxItems: 8
+          },
+          participant_highlights: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                contribution: { type: "string" },
+                impact: { type: "string" }
+              },
+              required: ["name", "contribution", "impact"],
+              additionalProperties: false
+            },
+            minItems: 3,
+            maxItems: 6
+          },
+          shared_links: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                url: { type: "string" },
+                domain: { type: "string" },
+                shared_by: { type: "string" },
+                shared_at: { type: "string" },
+                context: { type: "string" },
+                category: { type: "string" }
+              },
+              required: ["url", "domain", "shared_by", "shared_at"],
+              additionalProperties: false
+            },
+            minItems: 0,
+            maxItems: 20
+          },
+          link_summary: {
+            type: "object",
+            properties: {
+              total_links: { type: "number" },
+              unique_domains: { type: "array", items: { type: "string" } },
+              top_sharers: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    count: { type: "number" }
+                  },
+                  required: ["name", "count"],
+                  additionalProperties: false
+                }
+              },
+              categories: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    count: { type: "number" },
+                    examples: { type: "array", items: { type: "string" } }
+                  },
+                  required: ["name", "count", "examples"],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ["total_links", "unique_domains", "top_sharers", "categories"],
+            additionalProperties: false
+          },
+          discussion_topics: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 7 },
+          daily_metrics: {
+            type: "object",
+            properties: {
+              activity_level: { type: "string", enum: ["низкий", "средний", "высокий", "очень высокий"] },
+              engagement_quality: { type: "string", enum: ["поверхностное", "среднее", "глубокое", "интенсивное"] },
+              mood_tone: { type: "string", enum: ["позитивное", "нейтральное", "смешанное", "напряженное"] },
+              productivity: { type: "string", enum: ["низкая", "средняя", "высокая", "очень высокая"] }
+            },
+            required: ["activity_level", "engagement_quality", "mood_tone", "productivity"],
+            additionalProperties: false
+          },
+          next_day_forecast: { type: "array", items: { type: "string" }, minItems: 2, maxItems: 4 }
+        },
+        required: ["day_overview", "key_events", "participant_highlights", "shared_links", "link_summary", "discussion_topics", "daily_metrics", "next_day_forecast"],
         additionalProperties: false
       };
     case 'curator':
@@ -493,7 +599,68 @@ function getPersonaPrompt(persona: PersonaType): string {
 - Анализируй как настоящий модератор — ищи системные проблемы
 - Не игнорируй неудобные паттерны ради "позитива"
 - Возвращай ТОЛЬКО валидный JSON
-- Структура: {"summary": "...", "themes": ["...", ...], "insights": ["...", ...]}}`
+- Структура: {"summary": "...", "themes": ["...", ...], "insights": ["...", ...]}`
+,
+
+    'daily-summary': `Ты — профессиональный дневной суммаризатор Telegram-чатов, который создаёт детальные отчёты с конкретными фактами и ссылками. Твоя уникальность — полное отслеживание всех ссылок и ресурсов, которые были опубликованы.
+
+**Твой подход:**
+- Анализируй каждую ссылку: домен, кто поделился, в каком контексте
+- Классифицируй ссылки по категориям (новости, обучение, развлечения, тоолы, соцсети)
+- Выявляй паттерны: кто больше всего делится ссылками, какие домены популярны
+- Строй полную картину дня с конкретными фактами
+
+**Твоя задача:**
+Проанализировать активность за день и создать структурированный отчёт в формате JSON с 8 секциями:
+
+1. **day_overview** (строка 100-300 символов):
+   - Краткое резюме дня с конкретными цифрами
+   - Общий тон и настроение чата
+   - Ключевые характеристики активности
+
+2. **key_events** (массив 3-8 объектов):
+   - Каждый объект: {“time”: “HH:MM”, “event”: “описание”, “importance”: “high/medium/low”}
+   - Значимые моменты: пики активности, обсуждения, публикации ссылок
+
+3. **participant_highlights** (массив 3-6 объектов):
+   - Каждый объект: {“name”: “имя”, “contribution”: “вклад”, “impact”: “эффект”}
+   - Ключевые участники: активные комментаторы, шерщики ссылок, эксперты
+
+4. **shared_links** (массив 0-20 объектов) - **КЛЮЧЕВАЯ СЕКЦИЯ!**:
+   - Каждый объект: {
+     “url”: “полная ссылка”,
+     “domain”: “домен (youtube.com, github.com, ит.д.)”,
+     “shared_by”: “имя участника”,
+     “shared_at”: “HH:MM”,
+     “context”: “комментарий или описание (опционально)”,
+     “category”: “категория: новости/обучение/развлечения/тоолы/соцсети (опционально)”
+   }
+   - ПЕРЕЧИСЛИ ВСЕ ссылки которые были опубликованы за день!
+
+5. **link_summary** (объект с агрегированной статистикой):
+   - total_links: общее количество ссылок
+   - unique_domains: массив уникальных доменов
+   - top_sharers: топ-5 людей по количеству опубликованных ссылок
+   - categories: статистика по категориям ссылок
+
+6. **discussion_topics** (массив 3-7 строк):
+   - Основные темы с конкретными результатами
+   - Формат: “Тема: что точно обсуждалось и к какому выводу пришли”
+
+7. **daily_metrics** (объект с 4 полями):
+   - activity_level, engagement_quality, mood_tone, productivity
+   - Основанно на реальных метриках
+
+8. **next_day_forecast** (массив 2-4 строки):
+   - Конкретные прогнозы на основе паттернов дня
+   - Практичные рекомендации
+
+**КРИТИЧЕСКИ ВАЖНО:**
+- НИКАКИХ общих фраз! Только конкретные факты и цифры
+- Обязательно анализируй КАЖДУЮ ссылку из данных
+- Указывай конкретное время, имена, домены
+- Возвращай ТОЛЬКО валидный JSON
+- Структура: {“day_overview”, “key_events”, “participant_highlights”, “shared_links”, “link_summary”, “discussion_topics”, “daily_metrics”, “next_day_forecast”}`
   };
 
   return prompts[persona];
@@ -507,6 +674,132 @@ function buildTextPrompt({ date, chatId, metrics, text }: { date: string; chatId
     "Ниже сообщения за последние сутки (усечённо). Формат: [HH:MM] Автор: Текст",
     text
   ].join("\n");
+}
+
+function buildLinkPrompt({ date, chatId, metrics, links }: { 
+  date: string; 
+  chatId?: string; 
+  metrics: OverviewResponse; 
+  links: Array<{ timestamp: Date; label: string; text: string; links: string[] }> 
+}): string {
+  const linkDetails = links.map(msg => {
+    const timeStr = msg.timestamp.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    const linkList = msg.links.map(link => `  - ${link}`).join('\n');
+    return `[${timeStr}] ${msg.label}:\n${msg.text}\nСсылки:\n${linkList}`;
+  }).join('\n\n');
+  
+  // Создаем агрегированную статистику
+  const allLinks = links.flatMap(msg => msg.links);
+  const domainSet = new Set(allLinks.map(link => {
+    try {
+      return new URL(link).hostname.replace('www.', '');
+    } catch {
+      return link.split('/')[2] || link;
+    }
+  }));
+  const domains = Array.from(domainSet).sort();
+  
+  const linksByUser = new Map<string, number>();
+  links.forEach(msg => {
+    if (msg.links.length > 0) {
+      linksByUser.set(msg.label, (linksByUser.get(msg.label) || 0) + msg.links.length);
+    }
+  });
+  
+  const topSharers = Array.from(linksByUser.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([name, count]) => `${name}: ${count}`);
+  
+  return [
+    `Дата: ${date}`,
+    `Чат: ${chatId ?? "(не указан)"}`,
+    `Метрики: Всего ${metrics.totalMessages} сообщений, ${metrics.uniqueUsers} участников, ${metrics.linkMessages} сообщений со ссылками`,
+    `АНАЛИЗ ССЫЛОК:`,
+    `Общее количество ссылок: ${allLinks.length}`,
+    `Уникальных доменов: ${domains.length}`,
+    `Топ домены: ${domains.slice(0, 5).join(', ')}`,
+    `Топ шерщики ссылок: ${topSharers.join(', ')}`,
+    '',
+    'ДЕТАЛЬНЫЕ ДАННЫЕ О КАЖДОЙ ССЫЛКЕ:',
+    linkDetails
+  ].join('\n');
+}
+
+export async function generateDailySummaryReport({
+  date,
+  chatId,
+  metrics,
+  links
+}: {
+  date: string;
+  chatId?: string;
+  metrics: OverviewResponse;
+  links: Array<{ timestamp: Date; label: string; text: string; links: string[] }>;
+}): Promise<DailySummaryReport | null> {
+  if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
+    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
+  }
+
+  const messages: ChatMessage[] = [
+    {
+      role: "system",
+      content: getPersonaPrompt('daily-summary')
+    },
+    {
+      role: "user",
+      content: buildLinkPrompt({ date, chatId, metrics, links })
+    }
+  ];
+
+  console.log(`[OpenRouter] daily-summary with links, mode: link-based`);
+  console.log("[OpenRouter] metrics", {
+    total: metrics.totalMessages,
+    unique: metrics.uniqueUsers,
+    links: metrics.linkMessages,
+    linksWithData: links.length
+  });
+  
+  if (VERBOSE) console.log("[OpenRouter] messages", messages);
+  else console.log(
+    "[OpenRouter] message lengths",
+    messages.map((m) => ({ role: m.role, len: m.content.length }))
+  );
+
+  try {
+    const response = await callOpenRouter(messages, {
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: "daily_summary_report",
+          schema: getPersonaJsonSchema('daily-summary')
+        }
+      },
+      temperature: 0.6,
+      maxOutputTokens: 3000
+    });
+
+    if (!response) return null;
+
+    let json;
+    try {
+      json = JSON.parse(response);
+    } catch (parseError) {
+      console.error(`Failed to parse JSON response for daily-summary:`, parseError);
+      console.error(`Response preview:`, response.substring(0, 500));
+      return null;
+    }
+
+    const parsed = dailySummaryReportSchema.safeParse(json);
+    if (!parsed.success) {
+      console.error(`Failed to validate daily-summary response`, parsed.error);
+      return null;
+    }
+    return parsed.data;
+  } catch (error) {
+    console.error(`OpenRouter daily-summary report generation failed`, error);
+    return null;
+  }
 }
 
 export async function generateReportFromText({

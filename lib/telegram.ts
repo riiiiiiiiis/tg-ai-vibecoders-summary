@@ -4,7 +4,7 @@ import type { ReportPayload, PersonaReportPayload } from './types';
 export type TelegramMessage = {
   chat_id: string;
   text: string;
-  parse_mode: 'Markdown' | 'MarkdownV2';
+  parse_mode: 'HTML' | 'Markdown' | 'MarkdownV2';
   message_thread_id?: number;
 };
 
@@ -37,12 +37,39 @@ export function validateTelegramConfig(): { valid: boolean; error?: string } {
 }
 
 /**
+ * Escape special characters for Telegram HTML
+ */
+function escapeHTML(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Format date for display
+ */
+function formatDateForDisplay(date: string): string {
+  try {
+    const d = new Date(date);
+    const options: Intl.DateTimeFormatOptions = {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    };
+    return d.toLocaleDateString('ru-RU', options);
+  } catch {
+    return date;
+  }
+}
+
+/**
  * Format report payload into Telegram Markdown message
  * Handles both standard and persona reports
  */
 export function formatSummaryForTelegram(report: ReportPayload | PersonaReportPayload): string {
   if (!report) {
-    return '🤖 *AI Дайджест*\n\nОтчет недоступен';
+    return '🤖 <b>AI Дайджест</b>\n\n❌ Отчет недоступен';
   }
 
   // Check if it's a persona report
@@ -50,161 +77,370 @@ export function formatSummaryForTelegram(report: ReportPayload | PersonaReportPa
     return formatPersonaReport(report);
   }
 
+  // Check if it's a daily summary report
+  if ('data' in report && report.data && typeof report.data === 'object') {
+    if ('day_overview' in report.data) {
+      return formatDailySummaryReport(report);
+    }
+  }
+
   // Standard report format - must have summary, themes, insights
   if ('summary' in report && 'themes' in report && 'insights' in report) {
     const { date, summary, themes, insights } = report;
 
-    let message = `🤖 *AI Дайджест за ${date}*\n\n`;
+    const lines: string[] = [];
+    
+    // Header with beautiful date formatting
+    lines.push(`🤖 <b>AI Дайджест</b>`);
+    lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('');
 
-    // Summary section
-    if (summary) {
-      message += `📊 *Сводка*\n${summary}\n\n`;
+    // Summary section with better formatting
+    if (summary && summary.trim()) {
+      lines.push('📊 <b>Краткая сводка</b>');
+      lines.push('');
+      lines.push(escapeHTML(summary.trim()));
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
+      lines.push('');
     }
 
-    // Themes section
+    // Themes section with numbered list
     if (themes && themes.length > 0) {
-      message += `🎯 *Темы дня*\n`;
-      themes.forEach((theme: string) => {
-        message += `• ${theme}\n`;
+      lines.push('🎯 <b>Главные темы дня</b>');
+      lines.push('');
+      themes.forEach((theme: string, index: number) => {
+        if (theme && theme.trim()) {
+          lines.push(`${index + 1}️⃣ ${escapeHTML(theme.trim())}`);
+        }
       });
-      message += '\n';
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
+      lines.push('');
     }
 
-    // Insights section
+    // Insights section with bullet points
     if (insights && insights.length > 0) {
-      message += `💡 *Инсайты*\n`;
+      lines.push('💡 <b>Ключевые инсайты</b>');
+      lines.push('');
       insights.forEach((insight: string) => {
-        message += `• ${insight}\n`;
+        if (insight && insight.trim()) {
+          lines.push(`▶️ ${escapeHTML(insight.trim())}`);
+          lines.push('');
+        }
       });
-      message += '\n';
+      lines.push('• • • • • • • • • • • • • • • •');
+      lines.push('');
     }
 
-    message += '---\n_Сгенерировано AI-аналитиком_';
+    // Footer
+    lines.push('━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('🔮 <i>Создано AI-аналитиком</i>');
+    lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
 
-    return message;
+    return lines.join('\n');
   }
 
-  return '🤖 *AI Дайджест*\n\nНеизвестный формат отчета';
+  return '🤖 <b>AI Дайджест</b>\n\n❓ Неизвестный формат отчета';
 }
 
 /**
- * Format persona report for Telegram
+ * Format persona report for Telegram HTML
  */
 function formatPersonaReport(report: { date: string; persona?: string; data: any }): string {
   const lines: string[] = [];
   const { date, persona, data } = report;
 
-  lines.push(`🤖 *AI Дайджест за ${date}*`);
-  lines.push(`🔮 *Эксперт: ${getPersonaEmoji(persona)}*`);
+  lines.push(`🤖 <b>AI Дайджест</b>`);
+  lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
+  lines.push(`🔮 <b>Эксперт: ${getPersonaEmoji(persona)}</b>`);
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
   lines.push('');
 
   if (persona === 'business') {
     if (data.monetization_ideas?.length > 0) {
-      lines.push('💰 *Идеи монетизации:*');
+      lines.push('💰 <b>Идеи монетизации</b>');
+      lines.push('');
       data.monetization_ideas.forEach((idea: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${idea}`);
+        lines.push(`${idx + 1}️⃣ ${escapeHTML(idea)}`);
       });
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.revenue_strategies?.length > 0) {
-      lines.push('📈 *Стратегии дохода:*');
+      lines.push('📈 <b>Стратегии дохода</b>');
+      lines.push('');
       data.revenue_strategies.forEach((strategy: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${strategy}`);
+        lines.push(`${idx + 1}️⃣ ${escapeHTML(strategy)}`);
       });
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.roi_insights?.length > 0) {
-      lines.push('🔥 *ROI\\-инсайты:*');
+      lines.push('🔥 <b>ROI-инсайты</b>');
+      lines.push('');
       data.roi_insights.forEach((insight: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${insight}`);
+        lines.push(`▶️ ${escapeHTML(insight)}`);
+        lines.push('');
       });
     }
   } else if (persona === 'psychologist') {
     if (data.group_atmosphere) {
-      lines.push('🌡️ *Атмосфера группы:*');
-      lines.push(data.group_atmosphere);
+      lines.push('🌡️ <b>Атмосфера группы</b>');
+      lines.push('');
+      lines.push(`<i>${escapeHTML(data.group_atmosphere)}</i>`);
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.psychological_archetypes?.length > 0) {
-      lines.push('🎭 *Психологические архетипы:*');
+      lines.push('🎭 <b>Психологические архетипы</b>');
+      lines.push('');
       data.psychological_archetypes.forEach((archetype: any, idx: number) => {
-        lines.push(`${idx + 1}\\. *${archetype.name}* \\(${archetype.archetype}\\) \\- ${archetype.influence}`);
+        lines.push(`${idx + 1}️⃣ <b>${escapeHTML(archetype.name)}</b> <i>(${escapeHTML(archetype.archetype)})</i>`);
+        lines.push(`   → ${escapeHTML(archetype.influence)}`);
+        lines.push('');
       });
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.emotional_patterns?.length > 0) {
-      lines.push('💡 *Эмоциональные паттерны:*');
+      lines.push('💡 <b>Эмоциональные паттерны</b>');
+      lines.push('');
       data.emotional_patterns.forEach((pattern: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${pattern}`);
+        lines.push(`▶️ ${escapeHTML(pattern)}`);
+        lines.push('');
       });
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.group_dynamics?.length > 0) {
-      lines.push('⚙️ *Групповая динамика:*');
+      lines.push('⚙️ <b>Групповая динамика</b>');
+      lines.push('');
       data.group_dynamics.forEach((dynamic: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${dynamic}`);
+        lines.push(`▶️ ${escapeHTML(dynamic)}`);
+        lines.push('');
       });
     }
   } else if (persona === 'creative') {
     if (data.creative_temperature) {
-      lines.push('🌡️ *Креативная температура:*');
-      lines.push(data.creative_temperature);
+      lines.push('🌡️ <b>Креативная температура</b>');
+      lines.push('');
+      lines.push(`<i>${escapeHTML(data.creative_temperature)}</i>`);
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.viral_concepts?.length > 0) {
-      lines.push('🚀 *Вирусные концепции:*');
+      lines.push('🚀 <b>Вирусные концепции</b>');
+      lines.push('');
       data.viral_concepts.forEach((concept: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${concept}`);
+        lines.push(`${idx + 1}️⃣ ${escapeHTML(concept)}`);
       });
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.content_formats?.length > 0) {
-      lines.push('🎨 *Контент\\-форматы:*');
+      lines.push('🎨 <b>Контент-форматы</b>');
+      lines.push('');
       data.content_formats.forEach((format: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${format}`);
+        lines.push(`${idx + 1}️⃣ ${escapeHTML(format)}`);
       });
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.trend_opportunities?.length > 0) {
-      lines.push('🔥 *Трендовые возможности:*');
+      lines.push('🔥 <b>Трендовые возможности</b>');
+      lines.push('');
       data.trend_opportunities.forEach((opportunity: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${opportunity}`);
+        lines.push(`▶️ ${escapeHTML(opportunity)}`);
+        lines.push('');
       });
     }
   } else {
     // Generic personas (twitter, reddit, curator)
     if (data.summary) {
-      lines.push(data.summary);
+      lines.push('📊 <b>Обзор</b>');
+      lines.push('');
+      lines.push(escapeHTML(data.summary));
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.themes?.length > 0) {
-      lines.push('🎯 *Темы:*');
+      lines.push('🎯 <b>Темы</b>');
+      lines.push('');
       data.themes.forEach((theme: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${theme}`);
+        lines.push(`${idx + 1}️⃣ ${escapeHTML(theme)}`);
       });
+      lines.push('');
+      lines.push('• • • • • • • • • • • • • • • •');
       lines.push('');
     }
 
     if (data.insights?.length > 0) {
-      lines.push('💡 *Инсайты:*');
+      lines.push('💡 <b>Инсайты</b>');
+      lines.push('');
       data.insights.forEach((insight: string, idx: number) => {
-        lines.push(`${idx + 1}\\. ${insight}`);
+        lines.push(`▶️ ${escapeHTML(insight)}`);
+        lines.push('');
       });
     }
   }
 
   lines.push('');
-  lines.push('---');
-  lines.push('_Сгенерировано AI\\-аналитиком_');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('🔮 <i>Создано AI-аналитиком</i>');
+  lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
+
+  return lines.join('\n');
+}
+
+/**
+ * Format daily summary report for Telegram HTML
+ */
+function formatDailySummaryReport(report: { date: string; data: any }): string {
+  const lines: string[] = [];
+  const { date, data } = report;
+
+  lines.push(`🤖 <b>AI Дневной Отчет</b>`);
+  lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+
+  // Day overview
+  if (data.day_overview) {
+    lines.push('🌅 <b>Обзор дня</b>');
+    lines.push('');
+    lines.push(escapeHTML(data.day_overview));
+    lines.push('');
+    lines.push('• • • • • • • • • • • • • • • •');
+    lines.push('');
+  }
+
+  // Key events
+  if (data.key_events?.length > 0) {
+    lines.push('✨ <b>Ключевые события</b>');
+    lines.push('');
+    
+    const sortedEvents = data.key_events.sort((a: any, b: any) => {
+      const importance = { high: 3, medium: 2, low: 1 };
+      return importance[b.importance as keyof typeof importance] - importance[a.importance as keyof typeof importance];
+    });
+    
+    sortedEvents.forEach((event: any, idx: number) => {
+      const importanceEmoji = {
+        high: '🔥',
+        medium: '🔶',
+        low: '🟡'
+      }[event.importance] || '🔶';
+      
+      lines.push(`${importanceEmoji} <b>${escapeHTML(event.time)}</b>`);
+      lines.push(`   ${escapeHTML(event.event)}`);
+      lines.push('');
+    });
+    
+    lines.push('• • • • • • • • • • • • • • • •');
+    lines.push('');
+  }
+
+  // Participant highlights
+  if (data.participant_highlights?.length > 0) {
+    lines.push('🏆 <b>Яркие участники</b>');
+    lines.push('');
+    
+    data.participant_highlights.forEach((participant: any, idx: number) => {
+      lines.push(`${idx + 1}️⃣ <b>${escapeHTML(participant.name)}</b>`);
+      lines.push(`   🎤 ${escapeHTML(participant.contribution)}`);
+      lines.push(`   💫 ${escapeHTML(participant.impact)}`);
+      lines.push('');
+    });
+    
+    lines.push('• • • • • • • • • • • • • • • •');
+    lines.push('');
+  }
+
+  // Links summary
+  if (data.link_summary && data.link_summary.total_links > 0) {
+    lines.push(`🔗 <b>Поделились ссылками</b> <i>(${data.link_summary.total_links})</i>`);
+    lines.push('');
+    
+    if (data.link_summary.top_sharers?.length > 0) {
+      lines.push('👑 <i>Активные командиры:</i>');
+      data.link_summary.top_sharers.slice(0, 3).forEach((sharer: any) => {
+        lines.push(`   • ${escapeHTML(sharer.name)} (${sharer.count})`);
+      });
+      lines.push('');
+    }
+    
+    if (data.link_summary.categories?.length > 0) {
+      lines.push('📊 <i>Категории:</i>');
+      data.link_summary.categories.slice(0, 3).forEach((cat: any) => {
+        lines.push(`   🔹 ${escapeHTML(cat.name)} (${cat.count})`);
+      });
+      lines.push('');
+    }
+    
+    lines.push('• • • • • • • • • • • • • • • •');
+    lines.push('');
+  }
+
+  // Discussion topics
+  if (data.discussion_topics?.length > 0) {
+    lines.push('💬 <b>Обсуждаемые темы</b>');
+    lines.push('');
+    data.discussion_topics.forEach((topic: string, idx: number) => {
+      lines.push(`▶️ ${escapeHTML(topic)}`);
+    });
+    lines.push('');
+    lines.push('• • • • • • • • • • • • • • • •');
+    lines.push('');
+  }
+
+  // Daily metrics
+  if (data.daily_metrics) {
+    lines.push('📈 <b>Метрики дня</b>');
+    lines.push('');
+    lines.push(`🟢 <i>Активность:</i> ${data.daily_metrics.activity_level}`);
+    lines.push(`🔵 <i>Вовлеченность:</i> ${data.daily_metrics.engagement_quality}`);
+    lines.push(`🟡 <i>Настроение:</i> ${data.daily_metrics.mood_tone}`);
+    lines.push(`🟠 <i>Продуктивность:</i> ${data.daily_metrics.productivity}`);
+    lines.push('');
+    lines.push('• • • • • • • • • • • • • • • •');
+    lines.push('');
+  }
+
+  // Next day forecast
+  if (data.next_day_forecast?.length > 0) {
+    lines.push('🔮 <b>Прогноз на завтра</b>');
+    lines.push('');
+    data.next_day_forecast.forEach((forecast: string) => {
+      lines.push(`✨ ${escapeHTML(forecast)}`);
+    });
+    lines.push('');
+  }
+
+  // Footer
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('🔮 <i>Создано AI-аналитиком</i>');
+  lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
 
   return lines.join('\n');
 }
@@ -214,12 +450,13 @@ function formatPersonaReport(report: { date: string; persona?: string; data: any
  */
 function getPersonaEmoji(persona?: string): string {
   switch (persona) {
-    case 'business': return '💼 Бизнес\\-консультант';
+    case 'daily-summary': return '📊 Дневной суммаризатор';
+    case 'business': return '💼 Бизнес-консультант';
     case 'psychologist': return '🧠 Психолог сообществ';
     case 'creative': return '🚀 Креативный маркетолог';
-    case 'twitter': return '🐦 Twitter\\-скептик';
-    case 'reddit': return '👽 Reddit\\-модератор';
-    case 'curator': return '🎯 Куратор\\-реалист';
+    case 'twitter': return '🐦 Twitter-скептик';
+    case 'reddit': return '👽 Reddit-модератор';
+    case 'curator': return '🎯 Куратор-реалист';
     default: return '🔮 Аналитик';
   }
 }
@@ -284,7 +521,7 @@ export async function sendMessageToChat(
       const payload: TelegramMessage = {
         chat_id: chatId,
         text: messageParts[i],
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
       };
 
       // Add thread_id if provided

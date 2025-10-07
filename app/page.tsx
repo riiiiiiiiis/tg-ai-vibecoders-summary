@@ -4,6 +4,7 @@ import { AiInsights } from "@/components/ai-insights";
 import { MultiStyleSummaryGenerator } from "@/components/multi-style-summary-generator";
 import { ForumTopics } from "@/components/forum-topics";
 import { fetchOverview } from "@/lib/queries";
+import { getCurrentLocalDate } from "@/lib/date-utils";
 
 type PageProps = {
   searchParams?: Record<string, string | string[]>;
@@ -17,8 +18,7 @@ export default async function Dashboard24h({ searchParams }: PageProps) {
   const threadId = Array.isArray(threadParam) ? threadParam[0] : threadParam;
 
   const metrics = await fetchOverview({ chatId, threadId, window: 1 });
-  const date = new Date();
-  const isoDate = date.toISOString().slice(0, 10);
+  const isoDate = getCurrentLocalDate();
 
   return (
     <div className="main-container">

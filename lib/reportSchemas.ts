@@ -34,9 +34,54 @@ export const creativeReportSchema = z.object({
   trend_opportunities: z.array(z.string()).min(3).max(5)
 });
 
+// Дневной суммаризатор: структурированный дневной отчет
+export const dailySummaryReportSchema = z.object({
+  day_overview: z.string().min(100).max(300),
+  key_events: z.array(z.object({
+    time: z.string(),
+    event: z.string(),
+    importance: z.enum(['high', 'medium', 'low'])
+  })).min(3).max(8),
+  participant_highlights: z.array(z.object({
+    name: z.string(),
+    contribution: z.string(),
+    impact: z.string()
+  })).min(3).max(6),
+  shared_links: z.array(z.object({
+    url: z.string(),
+    domain: z.string(),
+    shared_by: z.string(),
+    shared_at: z.string(),
+    context: z.string().optional(),
+    category: z.string().optional()
+  })).min(0).max(20),
+  link_summary: z.object({
+    total_links: z.number(),
+    unique_domains: z.array(z.string()),
+    top_sharers: z.array(z.object({
+      name: z.string(),
+      count: z.number()
+    })),
+    categories: z.array(z.object({
+      name: z.string(),
+      count: z.number(),
+      examples: z.array(z.string())
+    }))
+  }),
+  discussion_topics: z.array(z.string()).min(3).max(7),
+  daily_metrics: z.object({
+    activity_level: z.enum(['низкий', 'средний', 'высокий', 'очень высокий']),
+    engagement_quality: z.enum(['поверхностное', 'среднее', 'глубокое', 'интенсивное']),
+    mood_tone: z.enum(['позитивное', 'нейтральное', 'смешанное', 'напряженное']),
+    productivity: z.enum(['низкая', 'средняя', 'высокая', 'очень высокая'])
+  }),
+  next_day_forecast: z.array(z.string()).min(2).max(4)
+});
+
 export type ParsedReport = z.infer<typeof reportSchema>;
 export type BusinessReport = z.infer<typeof businessReportSchema>;
 export type PsychologyReport = z.infer<typeof psychologyReportSchema>;
 export type CreativeReport = z.infer<typeof creativeReportSchema>;
+export type DailySummaryReport = z.infer<typeof dailySummaryReportSchema>;
 
-export type AnyReport = ParsedReport | BusinessReport | PsychologyReport | CreativeReport;
+export type AnyReport = ParsedReport | BusinessReport | PsychologyReport | CreativeReport | DailySummaryReport;

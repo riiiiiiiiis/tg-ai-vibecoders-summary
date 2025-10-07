@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildDailyReport } from "@/lib/report";
 import { validateTelegramConfig, formatSummaryForTelegram, sendMessageToChat } from "@/lib/telegram";
+import { getCurrentLocalDate } from "@/lib/date-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -8,10 +9,13 @@ export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
   const date = searchParams.get("date");
   const chatId = searchParams.get("chat_id") ?? undefined;
+  const threadId = searchParams.get("thread_id") ?? undefined;
   const daysParam = Number(searchParams.get("days") ?? "");
   const days = daysParam === 1 || daysParam === 7 ? (daysParam as 1 | 7) : 1;
+  const preview = searchParams.get("preview") === "true";
+  const persona = searchParams.get("persona") || undefined;
 
-  console.log(`[API] /api/send-to-telegram`, { date, chatId: chatId ? "***" : undefined, days });
+  console.log(`[API] /api/send-to-telegram`, { date, chatId: chatId ? "***" : undefined, days, preview, persona });
 
   // Validate Telegram credentials
   const configValidation = validateTelegramConfig();
@@ -37,20 +41,38 @@ export async function POST(request: Request) {
     // Check if report is provided in request body
     const body = await request.json().catch(() => null);
 
-    if (body && body.summary && body.themes && body.insights) {
+    if (body && (body.summary || body.data)) {
       console.log("[Telegram] Using pre-generated report from request body");
-      report = {
-        date: body.date || date || new Date().toISOString().split("T")[0],
-        chatId,
-        metrics: { totalMessages: 0, uniqueUsers: 0, linkMessages: 0, topUsers: [], series: [] }, // Dummy metrics for pre-generated report
-        summary: body.summary,
-        themes: body.themes,
-        insights: body.insights
-      };
+      
+      // Проверяем формат отчета: стандартный или персона-отчет
+      if (body.data && persona) {
+        report = {
+          date: body.date || date || getCurrentLocalDate(),
+          chatId,
+          threadId,
+          persona,
+          data: body.data,
+          metrics: { totalMessages: 0, uniqueUsers: 0, linkMessages: 0, topUsers: [], series: [] }
+        };
+      } else if (body.summary && body.themes && body.insights) {
+        report = {
+          date: body.date || date || getCurrentLocalDate(),
+          chatId,
+          metrics: { totalMessages: 0, uniqueUsers: 0, linkMessages: 0, topUsers: [], series: [] },
+          summary: body.summary,
+          themes: body.themes,
+          insights: body.insights
+        };
+      } else {
+        // Если формат не распознан, генерируем заново
+        console.log("[Telegram] Starting report generation...");
+        report = await buildDailyReport({ date: date ?? undefined, days, chatId, threadId, persona: persona as any });
+        console.log("[Telegram] Report generated successfully");
+      }
     } else {
       // Generate report
       console.log("[Telegram] Starting report generation...");
-      report = await buildDailyReport({ date: date ?? undefined, days, chatId });
+      report = await buildDailyReport({ date: date ?? undefined, days, chatId, threadId, persona: persona as any });
       console.log("[Telegram] Report generated successfully");
     }
 
@@ -68,6 +90,16 @@ export async function POST(request: Request) {
     console.log("[Telegram] Message formatted:", {
       length: formattedMessage.length
     });
+
+    // Если запрошен preview, возвращаем текст без отправки
+    if (preview) {
+      console.log("[Telegram] Returning preview only");
+      return NextResponse.json({
+        ok: true,
+        preview: formattedMessage,
+        message: "Предпросмотр создан"
+      });
+    }
 
     // Send to Telegram using new service
     console.log("[Telegram] Sending message to chat...");

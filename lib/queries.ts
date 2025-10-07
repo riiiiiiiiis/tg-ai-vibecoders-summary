@@ -296,6 +296,80 @@ export async function fetchForumTopics({
   }
 }
 
+export async function fetchMessagesWithLinks({
+  chatId,
+  threadId,
+  from,
+  to,
+  limit = 500
+}: {
+  chatId?: string;
+  threadId?: string;
+  from: Date;
+  to: Date;
+  limit?: number;
+}): Promise<Array<{ timestamp: Date; label: string; text: string; links: string[] }>> {
+  const pool = getPool();
+  console.log("[DB] fetchMessagesWithLinks params", {
+    chatId,
+    from: from.toISOString(),
+    to: to.toISOString(),
+    limit
+  });
+  
+  const params: Array<string | Date | number> = [from, to];
+  const where: string[] = [
+    "m.sent_at >= $1",
+    "m.sent_at < $2",
+    "COALESCE(m.text, '') <> ''",
+    "m.text ~* 'https?://'"
+  ];
+
+  if (chatId) {
+    where.push(`m.chat_id = $${params.length + 1}`);
+    params.push(chatId);
+  }
+
+  if (threadId) {
+    where.push(`m.message_thread_id = $${params.length + 1}`);
+    params.push(threadId);
+  }
+
+  const sql = `
+    SELECT m.sent_at, m.text,
+           COALESCE(u.first_name, '') AS first_name,
+           COALESCE(u.last_name, '')  AS last_name,
+           u.username
+    FROM messages m
+    LEFT JOIN users u ON u.id = m.user_id
+    WHERE ${where.join(" AND ")}
+    ORDER BY m.sent_at ASC
+    LIMIT $${params.length + 1}
+  `;
+  params.push(limit);
+
+  const { rows } = await pool.query<{
+    sent_at: Date;
+    text: string;
+    first_name: string | null;
+    last_name: string | null;
+    username: string | null;
+  }>(sql, params);
+
+  return rows.map((r) => {
+    // Извлекаем все ссылки из текста сообщения
+    const urlRegex = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/gi;
+    const links = r.text.match(urlRegex) || [];
+    
+    return {
+      timestamp: r.sent_at,
+      label: buildUserLabel(r.first_name, r.last_name, r.username),
+      text: r.text,
+      links
+    };
+  });
+}
+
 function buildUserLabel(firstName: string | null, lastName: string | null, username: string | null): string {
   const name = [firstName, lastName]
     .map((part) => part?.trim())
