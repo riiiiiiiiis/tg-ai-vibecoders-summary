@@ -16,10 +16,235 @@ type ReportArgs = {
   metrics: OverviewResponse;
 };
 
-export async function generateStructuredReport({ date, chatId, metrics }: ReportArgs): Promise<ParsedReport | null> {
+// ============== UNIFIED REPORT GENERATION ==============
+
+type GenerateReportParams = {
+  date: string;
+  chatId?: string;
+  metrics: OverviewResponse;
+  persona?: PersonaType;
+  text?: string;
+  links?: Array<{ timestamp: Date; label: string; text: string; links: string[] }>;
+};
+
+/**
+ * Универсальная функция генерации отчётов
+ * Заменяет: generateStructuredReport, generateReportWithPersona, generateDailySummaryReport, generateReportFromText
+ */
+export async function generateReport(params: GenerateReportParams): Promise<AnyReport | ParsedReport | null> {
+  validateAIConfig();
+  
+  const { date, chatId, metrics, persona, text, links } = params;
+  
+  // Определяем тип отчёта и строим prompt
+  let systemPrompt: string;
+  let userPrompt: string;
+  let schema: any;
+  let schemaName: string;
+  let contextName: string;
+  let maxTokens = 1600;
+  
+  if (persona === 'daily-summary' && links) {
+    // Daily summary с анализом ссылок
+    systemPrompt = getPersonaPrompt('daily-summary');
+    userPrompt = buildLinkPrompt({ date, chatId, metrics, links });
+    schema = getPersonaJsonSchema('daily-summary');
+    schemaName = 'daily_summary_report';
+    contextName = 'daily-summary';
+    maxTokens = 3000;
+    console.log(`[OpenRouter] daily-summary with links, mode: link-based, linksWithData: ${links.length}`);
+  } else if (persona) {
+    // Персонализированный отчёт
+    systemPrompt = getPersonaPrompt(persona);
+    userPrompt = text ? buildTextPrompt({ date, chatId, metrics, text }) : buildPrompt({ date, chatId, metrics });
+    schema = getPersonaJsonSchema(persona);
+    schemaName = `${persona}_report`;
+    contextName = persona;
+    maxTokens = 3000;
+  } else if (text) {
+    // Текстовый анализ
+    systemPrompt = `Ты — аналитик-куратор Telegram-чата с доступом к реальным сообщениям. Твоя суперсила — видеть паттерны в том, ЧТО и КАК пишут участники.
+
+**Твой стиль:**
+- Пиши по-русски, живым языком, как опытный друг-советчик
+- Избегай канцеляризмов ("в рамках", "осуществлять", "мероприятие")
+- Подмечай детали: тон, темы, эмоции, повторяющиеся фразы
+
+**Твоя задача:**
+Проанализировать содержание сообщений и создать практичный отчёт в формате JSON с тремя полями:
+
+1. **summary** (строка, 600-900 символов):
+   - Начни с 2-3 предложений о настроении чата и ключевых темах
+   - Затем раздел "Психо-профили участников:" со списком 6-8 самых ярких авторов
+
+2. **themes** (массив из 4-6 строк)
+3. **insights** (массив из 4-6 строк)
+
+**Критически важно:**
+- Возвращай ТОЛЬКО валидный JSON без markdown-блоков
+- Структура: {"summary": "...", "themes": ["...", ...], "insights": ["...", ...]}`;
+    userPrompt = buildTextPrompt({ date, chatId, metrics, text });
+    schema = {
+      type: "object",
+      properties: {
+        summary: { type: "string" },
+        themes: { type: "array", items: { type: "string" }, maxItems: 8 },
+        insights: { type: "array", items: { type: "string" }, maxItems: 8 }
+      },
+      required: ["summary", "themes", "insights"],
+      additionalProperties: false
+    };
+    schemaName = 'telegram_report';
+    contextName = 'text-based-report';
+  } else {
+    // Метрики-only
+    systemPrompt = `Ты — аналитик-куратор Telegram-чата, который помогает владельцу понимать динамику сообщества.
+
+**Твой стиль:**
+- Пиши по-русски, живым языком
+- Избегай канцеляризмов
+- Делай конкретные выводы
+
+**Твоя задача:**
+Создать отчёт в JSON: {"summary": "...", "themes": [...], "insights": [...]}
+
+**Критически важно:**
+- Не дублируй цифры из метрик
+- Возвращай ТОЛЬКО валидный JSON`;
+    userPrompt = buildPrompt({ date, chatId, metrics });
+    schema = {
+      type: "object",
+      properties: {
+        summary: { type: "string" },
+        themes: { type: "array", items: { type: "string" }, maxItems: 8 },
+        insights: { type: "array", items: { type: "string" }, maxItems: 8 }
+      },
+      required: ["summary", "themes", "insights"],
+      additionalProperties: false
+    };
+    schemaName = 'telegram_report';
+    contextName = 'structured-report';
+  }
+  
+  const messages: ChatMessage[] = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt }
+  ];
+  
+  _logOpenRouterCall(contextName, metrics, messages);
+  
+  try {
+    const response = await callOpenRouter(messages, {
+      responseFormat: {
+        type: "json_schema",
+        json_schema: {
+          name: schemaName,
+          schema: schema
+        }
+      },
+      temperature: 0.6,
+      maxOutputTokens: maxTokens
+    });
+    
+    const validationSchema = persona ? getPersonaSchema(persona) : reportSchema;
+    const result = _parseAIResponse<any>(response, validationSchema, contextName);
+    
+    // Sanitize creative persona if needed
+    if (persona === 'creative' && result && typeof result === 'object') {
+      const creativeResult = result as any;
+      if (creativeResult.creative_temperature && typeof creativeResult.creative_temperature === 'string' && creativeResult.creative_temperature.length > 300) {
+        console.warn(`[${persona}] Truncating creative_temperature from ${creativeResult.creative_temperature.length} to 300 characters`);
+        creativeResult.creative_temperature = creativeResult.creative_temperature.substring(0, 297) + '...';
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`OpenRouter ${contextName} report generation failed`, error);
+    return null;
+  }
+}
+
+// ============== HELPER FUNCTIONS ==============
+
+/** Проверка ENV переменных для AI */
+function validateAIConfig(): void {
   if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
     throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
   }
+}
+
+/** Парсинг и валидация JSON ответа */
+function _parseAIResponse<T>(response: string | null, schema: any, context: string): T | null {
+  if (!response) return null;
+
+  let json: unknown;
+  try {
+    json = JSON.parse(response);
+  } catch (parseError) {
+    console.error(`Failed to parse JSON response for ${context}:`, parseError);
+    if (response) console.error(`Response preview:`, response.substring(0, 500));
+    return null;
+  }
+
+  const parsed = schema.safeParse(json);
+  if (!parsed.success) {
+    console.error(`Failed to validate ${context} response`, parsed.error);
+    return null;
+  }
+  
+  return parsed.data;
+}
+
+/** Логирование вызова OpenRouter */
+function _logOpenRouterCall(context: string, metrics: OverviewResponse, messages: ChatMessage[]): void {
+  console.log(`[OpenRouter] ${context}`);
+  console.log("[OpenRouter] metrics", {
+    total: metrics.totalMessages,
+    unique: metrics.uniqueUsers,
+    links: metrics.linkMessages
+  });
+  
+  if (VERBOSE) console.log("[OpenRouter] messages", messages);
+  else console.log(
+    "[OpenRouter] message lengths",
+    messages.map((m) => ({ role: m.role, len: m.content.length }))
+  );
+}
+
+// ============== DEPRECATED WRAPPERS (для обратной совместимости) ==============
+
+/**
+ * @deprecated Используйте generateReport() вместо этой функции
+ */
+export async function generateStructuredReport({ date, chatId, metrics }: ReportArgs): Promise<ParsedReport | null> {
+  return generateReport({ date, chatId, metrics }) as Promise<ParsedReport | null>;
+}
+
+/**
+ * @deprecated Используйте generateReport() вместо этой функции
+ */
+export async function generateReportFromText({
+  date,
+  chatId,
+  metrics,
+  text
+}: {
+  date: string;
+  chatId?: string;
+  metrics: OverviewResponse;
+  text: string;
+}): Promise<ParsedReport | null> {
+  return generateReport({ date, chatId, metrics, text }) as Promise<ParsedReport | null>;
+}
+
+/**
+ * @deprecated - LEGACY FUNCTION - DO NOT USE
+ * Используйте generateReport() вместо этой функции
+ * Оставлена только для обратной совместимости - будет удалена
+ */
+export async function generateStructuredReport_OLD({ date, chatId, metrics }: ReportArgs): Promise<ParsedReport | null> {
+  validateAIConfig();
 
   const messages: ChatMessage[] = [
     {
@@ -62,17 +287,7 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
     }
   ];
 
-  console.log("[OpenRouter] mode", "metrics-only");
-  console.log("[OpenRouter] metrics", {
-    total: metrics.totalMessages,
-    unique: metrics.uniqueUsers,
-    links: metrics.linkMessages
-  });
-  if (VERBOSE) console.log("[OpenRouter] messages", messages);
-  else console.log(
-    "[OpenRouter] message lengths",
-    messages.map((m) => ({ role: m.role, len: m.content.length }))
-  );
+  _logOpenRouterCall("mode: metrics-only", metrics, messages);
 
   try {
     const response = await callOpenRouter(messages, {
@@ -96,22 +311,7 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
       maxOutputTokens: 1600
     });
 
-    if (!response) return null;
-
-    let json: unknown;
-    try {
-      json = JSON.parse(response);
-    } catch (parseError) {
-      console.error("Failed to parse JSON from OpenRouter", parseError);
-      return null;
-    }
-
-    const parsed = reportSchema.safeParse(json);
-    if (!parsed.success) {
-      console.error("Failed to parse OpenRouter response", parsed.error);
-      return null;
-    }
-    return parsed.data;
+    return _parseAIResponse<ParsedReport>(response, reportSchema, "structured-report");
   } catch (error) {
     console.error("OpenRouter report generation failed", error);
     return null;
@@ -120,6 +320,9 @@ export async function generateStructuredReport({ date, chatId, metrics }: Report
 
 export type PersonaType = 'curator' | 'business' | 'psychologist' | 'creative' | 'twitter' | 'reddit' | 'daily-summary';
 
+/**
+ * @deprecated Используйте generateReport() вместо этой функции
+ */
 export async function generateReportWithPersona({
   date,
   chatId,
@@ -133,70 +336,7 @@ export async function generateReportWithPersona({
   text?: string;
   persona?: PersonaType;
 }): Promise<AnyReport | null> {
-  if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
-    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
-  }
-
-  const systemPrompt = getPersonaPrompt(persona);
-  const userPrompt = text 
-    ? buildTextPrompt({ date, chatId, metrics, text })
-    : buildPrompt({ date, chatId, metrics });
-
-  const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: userPrompt }
-  ];
-
-  console.log(`[OpenRouter] persona: ${persona}, mode:`, text ? 'text-based' : 'metrics-only');
-  console.log("[OpenRouter] metrics", {
-    total: metrics.totalMessages,
-    unique: metrics.uniqueUsers,
-    links: metrics.linkMessages
-  });
-  
-  if (VERBOSE) console.log("[OpenRouter] messages", messages);
-  else console.log(
-    "[OpenRouter] message lengths",
-    messages.map((m) => ({ role: m.role, len: m.content.length }))
-  );
-
-  try {
-    const personaSchema = getPersonaSchema(persona);
-    const personaJsonSchema = getPersonaJsonSchema(persona);
-    
-    const response = await callOpenRouter(messages, {
-      responseFormat: {
-        type: "json_schema",
-        json_schema: {
-          name: `${persona}_report`,
-          schema: personaJsonSchema
-        }
-      },
-      temperature: 0.6,
-      maxOutputTokens: 3000
-    });
-
-    if (!response) return null;
-
-    let json;
-    try {
-      json = JSON.parse(response);
-    } catch (parseError) {
-      console.error(`Failed to parse JSON response for ${persona}:`, parseError);
-      console.error(`Response preview:`, response.substring(0, 500));
-      return null;
-    }
-
-    const parsed = personaSchema.safeParse(json);
-    if (!parsed.success) {
-      console.error(`Failed to validate OpenRouter ${persona} response`, parsed.error);
-      return null;
-    }
-    return parsed.data;
-  } catch (error) {
-    console.error(`OpenRouter ${persona} report generation failed`, error);
-    return null;
-  }
+  return generateReport({ date, chatId, metrics, text, persona });
 }
 
 function getPersonaSchema(persona: PersonaType) {
@@ -260,7 +400,7 @@ function getPersonaJsonSchema(persona: PersonaType) {
       return {
         type: "object",
         properties: {
-          creative_temperature: { type: "string", minLength: 50, maxLength: 200 },
+          creative_temperature: { type: "string", minLength: 50, maxLength: 300 },
           viral_concepts: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 7 },
           content_formats: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 },
           trend_opportunities: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 }
@@ -506,7 +646,7 @@ function getPersonaPrompt(persona: PersonaType): string {
 **Твоя задача:**
 Создать чисто креативный бриф в формате JSON с 4 секциями:
 
-1. **creative_temperature** (строка 50-200 символов):
+1. **creative_temperature** (строка 50-300 символов, НЕ БОЛЬШЕ 300!):
    - Оценка креативного потенциала аудитории
    - Типы: консервативная, традиционная, экспериментальная, мемная, авангардная, соцмедиа-нативная
 
@@ -726,6 +866,9 @@ function buildLinkPrompt({ date, chatId, metrics, links }: {
   ].join('\n');
 }
 
+/**
+ * @deprecated Используйте generateReport() с persona='daily-summary' вместо этой функции
+ */
 export async function generateDailySummaryReport({
   date,
   chatId,
@@ -737,181 +880,7 @@ export async function generateDailySummaryReport({
   metrics: OverviewResponse;
   links: Array<{ timestamp: Date; label: string; text: string; links: string[] }>;
 }): Promise<DailySummaryReport | null> {
-  if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
-    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
-  }
-
-  const messages: ChatMessage[] = [
-    {
-      role: "system",
-      content: getPersonaPrompt('daily-summary')
-    },
-    {
-      role: "user",
-      content: buildLinkPrompt({ date, chatId, metrics, links })
-    }
-  ];
-
-  console.log(`[OpenRouter] daily-summary with links, mode: link-based`);
-  console.log("[OpenRouter] metrics", {
-    total: metrics.totalMessages,
-    unique: metrics.uniqueUsers,
-    links: metrics.linkMessages,
-    linksWithData: links.length
-  });
-  
-  if (VERBOSE) console.log("[OpenRouter] messages", messages);
-  else console.log(
-    "[OpenRouter] message lengths",
-    messages.map((m) => ({ role: m.role, len: m.content.length }))
-  );
-
-  try {
-    const response = await callOpenRouter(messages, {
-      responseFormat: {
-        type: "json_schema",
-        json_schema: {
-          name: "daily_summary_report",
-          schema: getPersonaJsonSchema('daily-summary')
-        }
-      },
-      temperature: 0.6,
-      maxOutputTokens: 3000
-    });
-
-    if (!response) return null;
-
-    let json;
-    try {
-      json = JSON.parse(response);
-    } catch (parseError) {
-      console.error(`Failed to parse JSON response for daily-summary:`, parseError);
-      console.error(`Response preview:`, response.substring(0, 500));
-      return null;
-    }
-
-    const parsed = dailySummaryReportSchema.safeParse(json);
-    if (!parsed.success) {
-      console.error(`Failed to validate daily-summary response`, parsed.error);
-      return null;
-    }
-    return parsed.data;
-  } catch (error) {
-    console.error(`OpenRouter daily-summary report generation failed`, error);
-    return null;
-  }
-}
-
-export async function generateReportFromText({
-  date,
-  chatId,
-  metrics,
-  text
-}: {
-  date: string;
-  chatId?: string;
-  metrics: OverviewResponse;
-  text: string;
-}): Promise<ParsedReport | null> {
-  if (!process.env.OPENROUTER_API_KEY || !process.env.OPENROUTER_MODEL) {
-    throw new Error("AI service requires OPENROUTER_API_KEY and OPENROUTER_MODEL environment variables");
-  }
-
-  const messages: ChatMessage[] = [
-    {
-      role: "system",
-      content: `Ты — аналитик-куратор Telegram-чата с доступом к реальным сообщениям. Твоя суперсила — видеть паттерны в том, ЧТО и КАК пишут участники.
-
-**Твой стиль:**
-- Пиши по-русски, живым языком, как опытный друг-советчик
-- Избегай канцеляризмов ("в рамках", "осуществлять", "мероприятие")
-- Подмечай детали: тон, темы, эмоции, повторяющиеся фразы
-
-**Твоя задача:**
-Проанализировать содержание сообщений и создать практичный отчёт в формате JSON с тремя полями:
-
-1. **summary** (строка, 600-900 символов):
-   - Начни с 2-3 предложений о настроении чата и ключевых темах, которые всплывали
-   - Затем раздел "Психо-профили участников:" со списком 6-8 самых ярких авторов в формате:
-     "• Имя: роль + тон (примеры: мотиватор с юмором / критик-скептик / генератор мемов / философ-размышлятель / решала проблем), что характерно для его сообщений"
-   - Используй реальные сообщения для выводов: упоминай паттерны (частые вопросы, шутки, советы, споры)
-   - Выбирай для профилей не только самых активных, но и тех, кто задаёт тон или создаёт уникальный контент
-
-2. **themes** (массив из 4-6 строк):
-   - Каждая тема = конкретная идея контента, основанная на реальных интересах из переписки
-   - Формат: "Название темы: что именно предложить участникам и на какой запрос/тренд в чате это отвечает"
-   - Цепляйся за упоминаемые слова, вопросы, споры — предлагай развить это в формат
-   - Избегай общих фраз — если видишь тему, называй её прямо
-
-3. **insights** (массив из 4-6 строк):
-   - Каждый инсайт = рекомендация, основанная на поведенческих паттернах в сообщениях
-   - Формат: "Что сделать: почему это сработает (ссылайся на тон/темы/роли участников)"
-   - Предлагай форматы под конкретных людей: "Если X часто задаёт вопросы → запусти рубрику Q&A"
-   - Подмечай пробелы: какие темы участники начинают, но не доводят до конца
-
-**Критически важно:**
-- Используй преимущество доступа к текстам — делай выводы на основе содержания, а не только цифр
-- Не пересказывай сообщения — анализируй паттерны
-- Возвращай ТОЛЬКО валидный JSON без markdown-блоков, без дополнительного текста
-- Укладывайся в структуру: {"summary": "...", "themes": ["...", ...], "insights": ["...", ...]}`
-    },
-    {
-      role: "user",
-      content: [
-        `Дата: ${date}`,
-        `Чат: ${chatId ?? "(не указан)"}`,
-        `Всего сообщений: ${metrics.totalMessages}; Уникальные: ${metrics.uniqueUsers}; Со ссылками: ${metrics.linkMessages}`,
-        "Ниже сообщения за последние сутки (усечённо). Формат: [HH:MM] Автор: Текст",
-        text
-      ].join("\n")
-    }
-  ];
-
-  console.log("[OpenRouter] mode", "text-based");
-  console.log("[OpenRouter] metrics", {
-    total: metrics.totalMessages,
-    unique: metrics.uniqueUsers,
-    links: metrics.linkMessages
-  });
-  if (VERBOSE) console.log("[OpenRouter] messages", messages);
-  else console.log(
-    "[OpenRouter] message lengths",
-    messages.map((m) => ({ role: m.role, len: m.content.length }))
-  );
-
-  try {
-    const raw = await callOpenRouter(messages, {
-      responseFormat: {
-        type: "json_schema",
-        json_schema: {
-          name: "telegram_report",
-          schema: {
-            type: "object",
-            properties: {
-              summary: { type: "string" },
-              themes: { type: "array", items: { type: "string" }, maxItems: 8 },
-              insights: { type: "array", items: { type: "string" }, maxItems: 8 }
-            },
-            required: ["summary", "themes", "insights"],
-            additionalProperties: false
-          }
-        }
-      },
-      temperature: 0.6,
-      maxOutputTokens: 1600
-    });
-    if (!raw) return null;
-    const json = JSON.parse(raw);
-    const parsed = reportSchema.safeParse(json);
-    if (!parsed.success) {
-      console.error("Failed to parse OpenRouter text-based response", parsed.error);
-      return null;
-    }
-    return parsed.data;
-  } catch (error) {
-    console.error("OpenRouter report-from-text generation failed", error);
-    return null;
-  }
+  return generateReport({ date, chatId, metrics, persona: 'daily-summary', links }) as Promise<DailySummaryReport | null>;
 }
 
 async function callOpenRouter(

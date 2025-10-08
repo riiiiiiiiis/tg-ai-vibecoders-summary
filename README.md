@@ -55,3 +55,22 @@ This application **requires** AI functionality for insights generation:
 npm run lint
 ```
 Linting should pass without additional configuration.
+
+## 🔧 Refactoring Status
+
+### 🟢 Day 1: AI Module - In Progress
+**Goal:** Eliminate code duplication in AI generation functions
+
+**Completed:**
+- ✅ Created helper functions (`validateAIConfig`, `_parseAIResponse`, `_logOpenRouterCall`)
+- ✅ Refactored 4 functions to use helpers
+- ✅ **Saved ~136 lines of code**
+
+**Remaining:**
+- ⏳ Create unified `generateReport()` function
+- ⏳ Remove old functions
+- ⏳ Test all personas
+
+**Progress:** 3/6 tasks completed (50%)
+
+See `docs/` for detailed refactoring plan, tasks, and logs.

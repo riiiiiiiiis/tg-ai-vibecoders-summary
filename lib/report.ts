@@ -1,4 +1,4 @@
-import { generateStructuredReport, generateReportFromText, generateReportWithPersona, generateDailySummaryReport, PersonaType } from "./ai";
+import { generateReport, PersonaType } from "./ai";
 import { fetchOverview, fetchMessagesWithAuthors, fetchMessagesWithLinks } from "./queries";
 import { getCurrentLocalDate } from "./date-utils";
 import type { ReportPayload, PersonaReportPayload } from "./types";
@@ -37,58 +37,62 @@ export async function buildDailyReport({ date, chatId, threadId, days, persona }
     });
     console.log("[Report] strategy", { used: blob ? "text-based" : "metrics-fallback" });
 
+    // Используем универсальную функцию generateReport
     if (persona) {
-      // Для daily-summary персоны используем специальные данные о ссылках
-      if (persona === 'daily-summary') {
-        const linksData = await fetchMessagesWithLinks({ chatId, threadId, from, to, limit: 500 });
+      const linksData = persona === 'daily-summary' 
+        ? await fetchMessagesWithLinks({ chatId, threadId, from, to, limit: 500 }) 
+        : undefined;
+      
+      if (linksData) {
         console.log("[Report] fetched messages with links", { count: linksData.length });
-        
-        const use = await generateDailySummaryReport({ 
-          date: dateForAi, 
-          chatId, 
-          metrics, 
-          links: linksData
-        });
-        
-        console.log("[Report] result source", { source: `persona-${persona}-with-links` });
-        if (!use) return null;
-        
-        return {
-          date: dateForAi,
-          chatId,
-          metrics,
-          persona,
-          data: use
-        };
-      } else {
-        const use = await generateReportWithPersona({ date: dateForAi, chatId, metrics, text: blob, persona });
-        console.log("[Report] result source", { source: `persona-${persona}` });
-        if (!use) return null;
-        
-        return {
-          date: dateForAi,
-          chatId,
-          metrics,
-          persona,
-          data: use
-        };
       }
+      
+      const use = await generateReport({ 
+        date: dateForAi, 
+        chatId, 
+        metrics, 
+        persona,
+        text: blob,
+        links: linksData
+      });
+      
+      console.log("[Report] result source", { 
+        source: persona === 'daily-summary' && linksData ? `persona-${persona}-with-links` : `persona-${persona}` 
+      });
+      
+      if (!use) return null;
+      
+      return {
+        date: dateForAi,
+        chatId,
+        metrics,
+        persona,
+        data: use
+      };
     } else {
-      const use = blob
-        ? await generateReportFromText({ date: dateForAi, chatId, metrics, text: blob })
-        : await generateStructuredReport({ date: dateForAi, chatId, metrics });
+      const use = await generateReport({ 
+        date: dateForAi, 
+        chatId, 
+        metrics, 
+        text: blob 
+      });
+      
       console.log("[Report] result source", { 
         source: blob ? "text-based" : "metrics-only" 
       });
+      
       if (!use) return null;
+
+      // Type guard: если нет persona, то use это ParsedReport
+      const parsedReport = use as { summary: string; themes: string[]; insights: string[] };
 
       return {
         date: dateForAi,
         chatId,
         metrics,
-        summary: use.summary,
-        themes: use.themes,
-        insights: use.insights
+        summary: parsedReport.summary,
+        themes: parsedReport.themes,
+        insights: parsedReport.insights
       };
     }
   } catch (error) {

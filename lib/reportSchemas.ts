@@ -28,7 +28,7 @@ export const psychologyReportSchema = z.object({
 
 // Креативный: только контент-идеи и тренды
 export const creativeReportSchema = z.object({
-  creative_temperature: z.string().min(50).max(200),
+  creative_temperature: z.string().min(50).max(300),
   viral_concepts: z.array(z.string()).min(4).max(7),
   content_formats: z.array(z.string()).min(3).max(6),
   trend_opportunities: z.array(z.string()).min(3).max(5)
