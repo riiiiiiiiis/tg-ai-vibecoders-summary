@@ -45,13 +45,14 @@
 **Проблема:** 3 форматтера с повторяющейся логикой
 
 **Решение:**
-- [ ] Создать `lib/telegram/format-helpers.ts` ⏱️ 1ч
-  - `buildHeader(date, persona)`
-  - `buildDivider(type)`
-  - `buildFooter()`
-  - `buildSection(title, items, style)`
-- [ ] Вынести константы в `telegram-constants.ts` ⏱️ 0.5ч
-- [ ] Переписать 3 форматтера через хелперы ⏱️ 2.5ч
+- [x] Создать хелперы в `lib/telegram.ts` ⏱️ 1ч ✅
+  - `_buildHeader(date, persona)`
+  - `_buildDivider(type)`
+  - `_buildFooter()`
+  - `_buildNumberedList(emoji, title, items)`
+  - `_buildBulletedList(emoji, title, items)`
+  - `_buildTextSection(emoji, title, text)`
+- [x] Упростить 3 форматтера через хелперы ⏱️ 0.5ч ✅
 - [ ] Протестировать все типы отчётов ⏱️ 1ч
 
 ### 5. React компоненты - объединить логику (6ч)

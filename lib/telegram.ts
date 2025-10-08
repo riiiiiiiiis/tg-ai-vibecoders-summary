@@ -18,6 +18,98 @@ export type TelegramResponse = {
 const TELEGRAM_API_URL = process.env.TELEGRAM_API_URL || 'https://api.telegram.org';
 const SAFE_MESSAGE_LENGTH = 4000;
 
+// ========================================
+// FORMATTING HELPERS (DRY)
+// ========================================
+
+/**
+ * Build header for report
+ */
+function _buildHeader(title: string, date: string, subtitle?: string): string[] {
+  const lines: string[] = [];
+  lines.push(`🤖 <b>${title}</b>`);
+  lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
+  if (subtitle) {
+    lines.push(`🔮 <b>${subtitle}</b>`);
+  }
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  return lines;
+}
+
+/**
+ * Build section divider
+ */
+function _buildDivider(): string[] {
+  return ['• • • • • • • • • • • • • • • •', ''];
+}
+
+/**
+ * Build footer for report
+ */
+function _buildFooter(): string[] {
+  const lines: string[] = [];
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('🔮 <i>Создано AI-аналитиком</i>');
+  lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
+  return lines;
+}
+
+/**
+ * Build numbered list section
+ */
+function _buildNumberedList(emoji: string, title: string, items: string[]): string[] {
+  if (!items || items.length === 0) return [];
+  
+  const lines: string[] = [];
+  lines.push(`${emoji} <b>${title}</b>`);
+  lines.push('');
+  items.forEach((item, idx) => {
+    if (item && item.trim()) {
+      lines.push(`${idx + 1}️⃣ ${escapeHTML(item.trim())}`);
+    }
+  });
+  lines.push('');
+  lines.push(..._buildDivider());
+  return lines;
+}
+
+/**
+ * Build bulleted list section
+ */
+function _buildBulletedList(emoji: string, title: string, items: string[]): string[] {
+  if (!items || items.length === 0) return [];
+  
+  const lines: string[] = [];
+  lines.push(`${emoji} <b>${title}</b>`);
+  lines.push('');
+  items.forEach((item) => {
+    if (item && item.trim()) {
+      lines.push(`▶️ ${escapeHTML(item.trim())}`);
+      lines.push('');
+    }
+  });
+  lines.push(..._buildDivider());
+  return lines;
+}
+
+/**
+ * Build text section
+ */
+function _buildTextSection(emoji: string, title: string, text: string): string[] {
+  if (!text || !text.trim()) return [];
+  
+  const lines: string[] = [];
+  lines.push(`${emoji} <b>${title}</b>`);
+  lines.push('');
+  lines.push(escapeHTML(text.trim()));
+  lines.push('');
+  lines.push(..._buildDivider());
+  return lines;
+}
+
 /**
  * Validate Telegram configuration from environment variables
  */
@@ -88,57 +180,13 @@ export function formatSummaryForTelegram(report: ReportPayload | PersonaReportPa
   if ('summary' in report && 'themes' in report && 'insights' in report) {
     const { date, summary, themes, insights } = report;
 
-    const lines: string[] = [];
-    
-    // Header with beautiful date formatting
-    lines.push(`🤖 <b>AI Дайджест</b>`);
-    lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
-    lines.push('');
-    lines.push('━━━━━━━━━━━━━━━━━━━━━');
-    lines.push('');
-
-    // Summary section with better formatting
-    if (summary && summary.trim()) {
-      lines.push('📊 <b>Краткая сводка</b>');
-      lines.push('');
-      lines.push(escapeHTML(summary.trim()));
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    // Themes section with numbered list
-    if (themes && themes.length > 0) {
-      lines.push('🎯 <b>Главные темы дня</b>');
-      lines.push('');
-      themes.forEach((theme: string, index: number) => {
-        if (theme && theme.trim()) {
-          lines.push(`${index + 1}️⃣ ${escapeHTML(theme.trim())}`);
-        }
-      });
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    // Insights section with bullet points
-    if (insights && insights.length > 0) {
-      lines.push('💡 <b>Ключевые инсайты</b>');
-      lines.push('');
-      insights.forEach((insight: string) => {
-        if (insight && insight.trim()) {
-          lines.push(`▶️ ${escapeHTML(insight.trim())}`);
-          lines.push('');
-        }
-      });
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    // Footer
-    lines.push('━━━━━━━━━━━━━━━━━━━━━');
-    lines.push('🔮 <i>Создано AI-аналитиком</i>');
-    lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
+    const lines: string[] = [
+      ..._buildHeader('AI Дайджест', date),
+      ..._buildTextSection('📊', 'Краткая сводка', summary),
+      ..._buildNumberedList('🎯', 'Главные темы дня', themes),
+      ..._buildBulletedList('💡', 'Ключевые инсайты', insights),
+      ..._buildFooter()
+    ];
 
     return lines.join('\n');
   }
@@ -150,57 +198,19 @@ export function formatSummaryForTelegram(report: ReportPayload | PersonaReportPa
  * Format persona report for Telegram HTML
  */
 function formatPersonaReport(report: { date: string; persona?: string; data: any }): string {
-  const lines: string[] = [];
   const { date, persona, data } = report;
-
-  lines.push(`🤖 <b>AI Дайджест</b>`);
-  lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
-  lines.push(`🔮 <b>Эксперт: ${getPersonaEmoji(persona)}</b>`);
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('');
+  const lines: string[] = [
+    ..._buildHeader('AI Дайджест', date, `Эксперт: ${getPersonaEmoji(persona)}`)
+  ];
 
   if (persona === 'business') {
-    if (data.monetization_ideas?.length > 0) {
-      lines.push('💰 <b>Идеи монетизации</b>');
-      lines.push('');
-      data.monetization_ideas.forEach((idea: string, idx: number) => {
-        lines.push(`${idx + 1}️⃣ ${escapeHTML(idea)}`);
-      });
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.revenue_strategies?.length > 0) {
-      lines.push('📈 <b>Стратегии дохода</b>');
-      lines.push('');
-      data.revenue_strategies.forEach((strategy: string, idx: number) => {
-        lines.push(`${idx + 1}️⃣ ${escapeHTML(strategy)}`);
-      });
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.roi_insights?.length > 0) {
-      lines.push('🔥 <b>ROI-инсайты</b>');
-      lines.push('');
-      data.roi_insights.forEach((insight: string, idx: number) => {
-        lines.push(`▶️ ${escapeHTML(insight)}`);
-        lines.push('');
-      });
-    }
+    lines.push(..._buildNumberedList('💰', 'Идеи монетизации', data.monetization_ideas));
+    lines.push(..._buildNumberedList('📈', 'Стратегии дохода', data.revenue_strategies));
+    lines.push(..._buildBulletedList('🔥', 'ROI-инсайты', data.roi_insights));
   } else if (persona === 'psychologist') {
-    if (data.group_atmosphere) {
-      lines.push('🌡️ <b>Атмосфера группы</b>');
-      lines.push('');
-      lines.push(`<i>${escapeHTML(data.group_atmosphere)}</i>`);
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
+    lines.push(..._buildTextSection('🌡️', 'Атмосфера группы', data.group_atmosphere));
+    
+    // Специальное форматирование для архетипов
     if (data.psychological_archetypes?.length > 0) {
       lines.push('🎭 <b>Психологические архетипы</b>');
       lines.push('');
@@ -209,106 +219,24 @@ function formatPersonaReport(report: { date: string; persona?: string; data: any
         lines.push(`   → ${escapeHTML(archetype.influence)}`);
         lines.push('');
       });
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
+      lines.push(..._buildDivider());
     }
-
-    if (data.emotional_patterns?.length > 0) {
-      lines.push('💡 <b>Эмоциональные паттерны</b>');
-      lines.push('');
-      data.emotional_patterns.forEach((pattern: string, idx: number) => {
-        lines.push(`▶️ ${escapeHTML(pattern)}`);
-        lines.push('');
-      });
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.group_dynamics?.length > 0) {
-      lines.push('⚙️ <b>Групповая динамика</b>');
-      lines.push('');
-      data.group_dynamics.forEach((dynamic: string, idx: number) => {
-        lines.push(`▶️ ${escapeHTML(dynamic)}`);
-        lines.push('');
-      });
-    }
+    
+    lines.push(..._buildBulletedList('💡', 'Эмоциональные паттерны', data.emotional_patterns));
+    lines.push(..._buildBulletedList('⚙️', 'Групповая динамика', data.group_dynamics));
   } else if (persona === 'creative') {
-    if (data.creative_temperature) {
-      lines.push('🌡️ <b>Креативная температура</b>');
-      lines.push('');
-      lines.push(`<i>${escapeHTML(data.creative_temperature)}</i>`);
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.viral_concepts?.length > 0) {
-      lines.push('🚀 <b>Вирусные концепции</b>');
-      lines.push('');
-      data.viral_concepts.forEach((concept: string, idx: number) => {
-        lines.push(`${idx + 1}️⃣ ${escapeHTML(concept)}`);
-      });
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.content_formats?.length > 0) {
-      lines.push('🎨 <b>Контент-форматы</b>');
-      lines.push('');
-      data.content_formats.forEach((format: string, idx: number) => {
-        lines.push(`${idx + 1}️⃣ ${escapeHTML(format)}`);
-      });
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.trend_opportunities?.length > 0) {
-      lines.push('🔥 <b>Трендовые возможности</b>');
-      lines.push('');
-      data.trend_opportunities.forEach((opportunity: string, idx: number) => {
-        lines.push(`▶️ ${escapeHTML(opportunity)}`);
-        lines.push('');
-      });
-    }
+    lines.push(..._buildTextSection('🌡️', 'Креативная температура', data.creative_temperature));
+    lines.push(..._buildNumberedList('🚀', 'Вирусные концепции', data.viral_concepts));
+    lines.push(..._buildNumberedList('🎨', 'Контент-форматы', data.content_formats));
+    lines.push(..._buildBulletedList('🔥', 'Трендовые возможности', data.trend_opportunities));
   } else {
     // Generic personas (twitter, reddit, curator)
-    if (data.summary) {
-      lines.push('📊 <b>Обзор</b>');
-      lines.push('');
-      lines.push(escapeHTML(data.summary));
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.themes?.length > 0) {
-      lines.push('🎯 <b>Темы</b>');
-      lines.push('');
-      data.themes.forEach((theme: string, idx: number) => {
-        lines.push(`${idx + 1}️⃣ ${escapeHTML(theme)}`);
-      });
-      lines.push('');
-      lines.push('• • • • • • • • • • • • • • • •');
-      lines.push('');
-    }
-
-    if (data.insights?.length > 0) {
-      lines.push('💡 <b>Инсайты</b>');
-      lines.push('');
-      data.insights.forEach((insight: string, idx: number) => {
-        lines.push(`▶️ ${escapeHTML(insight)}`);
-        lines.push('');
-      });
-    }
+    lines.push(..._buildTextSection('📊', 'Обзор', data.summary));
+    lines.push(..._buildNumberedList('🎯', 'Темы', data.themes));
+    lines.push(..._buildBulletedList('💡', 'Инсайты', data.insights));
   }
 
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('🔮 <i>Создано AI-аналитиком</i>');
-  lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
-
+  lines.push(..._buildFooter());
   return lines.join('\n');
 }
 
@@ -316,24 +244,11 @@ function formatPersonaReport(report: { date: string; persona?: string; data: any
  * Format daily summary report for Telegram HTML
  */
 function formatDailySummaryReport(report: { date: string; data: any }): string {
-  const lines: string[] = [];
   const { date, data } = report;
-
-  lines.push(`🤖 <b>AI Дневной Отчет</b>`);
-  lines.push(`📅 <i>${formatDateForDisplay(date)}</i>`);
-  lines.push('');
-  lines.push('━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('');
-
-  // Day overview
-  if (data.day_overview) {
-    lines.push('🌅 <b>Обзор дня</b>');
-    lines.push('');
-    lines.push(escapeHTML(data.day_overview));
-    lines.push('');
-    lines.push('• • • • • • • • • • • • • • • •');
-    lines.push('');
-  }
+  const lines: string[] = [
+    ..._buildHeader('AI Дневной Отчет', date),
+    ..._buildTextSection('🌅', 'Обзор дня', data.day_overview)
+  ];
 
   // Key events
   if (data.key_events?.length > 0) {
@@ -402,17 +317,8 @@ function formatDailySummaryReport(report: { date: string; data: any }): string {
     lines.push('');
   }
 
-  // Discussion topics
-  if (data.discussion_topics?.length > 0) {
-    lines.push('💬 <b>Обсуждаемые темы</b>');
-    lines.push('');
-    data.discussion_topics.forEach((topic: string, idx: number) => {
-      lines.push(`▶️ ${escapeHTML(topic)}`);
-    });
-    lines.push('');
-    lines.push('• • • • • • • • • • • • • • • •');
-    lines.push('');
-  }
+  // Discussion topics - use helper
+  lines.push(..._buildBulletedList('💬', 'Обсуждаемые темы', data.discussion_topics));
 
   // Daily metrics
   if (data.daily_metrics) {
@@ -427,7 +333,7 @@ function formatDailySummaryReport(report: { date: string; data: any }): string {
     lines.push('');
   }
 
-  // Next day forecast
+  // Next day forecast - custom emoji
   if (data.next_day_forecast?.length > 0) {
     lines.push('🔮 <b>Прогноз на завтра</b>');
     lines.push('');
@@ -437,11 +343,7 @@ function formatDailySummaryReport(report: { date: string; data: any }): string {
     lines.push('');
   }
 
-  // Footer
-  lines.push('━━━━━━━━━━━━━━━━━━━━━');
-  lines.push('🔮 <i>Создано AI-аналитиком</i>');
-  lines.push(`⚡️ <i>${new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}</i>`);
-
+  lines.push(..._buildFooter());
   return lines.join('\n');
 }
 
