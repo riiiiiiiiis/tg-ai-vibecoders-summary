@@ -357,57 +357,86 @@ function getPersonaSchema(persona: PersonaType) {
   }
 }
 
+// ========================================
+// JSON SCHEMA HELPERS (DRY)
+// ========================================
+
+/**
+ * Create string field schema
+ */
+function _stringField(minLength?: number, maxLength?: number) {
+  const schema: any = { type: "string" };
+  if (minLength) schema.minLength = minLength;
+  if (maxLength) schema.maxLength = maxLength;
+  return schema;
+}
+
+/**
+ * Create array field schema
+ */
+function _arrayField(itemType: any, minItems?: number, maxItems?: number) {
+  const schema: any = {
+    type: "array",
+    items: itemType
+  };
+  if (minItems !== undefined) schema.minItems = minItems;
+  if (maxItems) schema.maxItems = maxItems;
+  return schema;
+}
+
+/**
+ * Create object field schema
+ */
+function _objectField(properties: any, required: string[]) {
+  return {
+    type: "object",
+    properties,
+    required,
+    additionalProperties: false
+  };
+}
+
+/**
+ * Create enum field schema
+ */
+function _enumField(values: string[]) {
+  return {
+    type: "string",
+    enum: values
+  };
+}
+
 function getPersonaJsonSchema(persona: PersonaType) {
   switch (persona) {
     case 'business':
-      return {
-        type: "object",
-        properties: {
-          monetization_ideas: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 },
-          revenue_strategies: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 },
-          roi_insights: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 }
-        },
-        required: ["monetization_ideas", "revenue_strategies", "roi_insights"],
-        additionalProperties: false
-      };
+      return _objectField({
+        monetization_ideas: _arrayField(_stringField(), 3, 6),
+        revenue_strategies: _arrayField(_stringField(), 3, 6),
+        roi_insights: _arrayField(_stringField(), 3, 5)
+      }, ["monetization_ideas", "revenue_strategies", "roi_insights"]);
+      
     case 'psychologist':
-      return {
-        type: "object",
-        properties: {
-          group_atmosphere: { type: "string", minLength: 50, maxLength: 200 },
-          psychological_archetypes: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                name: { type: "string" },
-                archetype: { type: "string" },
-                influence: { type: "string" }
-              },
-              required: ["name", "archetype", "influence"],
-              additionalProperties: false
-            },
-            minItems: 4,
-            maxItems: 8
-          },
-          emotional_patterns: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 },
-          group_dynamics: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 }
-        },
-        required: ["group_atmosphere", "psychological_archetypes", "emotional_patterns", "group_dynamics"],
-        additionalProperties: false
-      };
+      return _objectField({
+        group_atmosphere: _stringField(50, 200),
+        psychological_archetypes: _arrayField(
+          _objectField({
+            name: _stringField(),
+            archetype: _stringField(),
+            influence: _stringField()
+          }, ["name", "archetype", "influence"]),
+          4, 8
+        ),
+        emotional_patterns: _arrayField(_stringField(), 3, 6),
+        group_dynamics: _arrayField(_stringField(), 3, 5)
+      }, ["group_atmosphere", "psychological_archetypes", "emotional_patterns", "group_dynamics"]);
+      
     case 'creative':
-      return {
-        type: "object",
-        properties: {
-          creative_temperature: { type: "string", minLength: 50, maxLength: 300 },
-          viral_concepts: { type: "array", items: { type: "string" }, minItems: 4, maxItems: 7 },
-          content_formats: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 6 },
-          trend_opportunities: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 }
-        },
-        required: ["creative_temperature", "viral_concepts", "content_formats", "trend_opportunities"],
-        additionalProperties: false
-      };
+      return _objectField({
+        creative_temperature: _stringField(50, 300),
+        viral_concepts: _arrayField(_stringField(), 4, 7),
+        content_formats: _arrayField(_stringField(), 3, 6),
+        trend_opportunities: _arrayField(_stringField(), 3, 5)
+      }, ["creative_temperature", "viral_concepts", "content_formats", "trend_opportunities"]);
     case 'daily-summary':
       return {
         type: "object",
@@ -516,16 +545,11 @@ function getPersonaJsonSchema(persona: PersonaType) {
     case 'twitter':
     case 'reddit':
     default:
-      return {
-        type: "object",
-        properties: {
-          summary: { type: "string" },
-          themes: { type: "array", items: { type: "string" }, maxItems: 8 },
-          insights: { type: "array", items: { type: "string" }, maxItems: 8 }
-        },
-        required: ["summary", "themes", "insights"],
-        additionalProperties: false
-      };
+      return _objectField({
+        summary: _stringField(),
+        themes: _arrayField(_stringField(), undefined, 8),
+        insights: _arrayField(_stringField(), undefined, 8)
+      }, ["summary", "themes", "insights"]);
   }
 }
 
