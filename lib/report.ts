@@ -65,6 +65,7 @@ export async function buildDailyReport({ date, chatId, threadId, days, persona }
       return {
         date: dateForAi,
         chatId,
+        threadId,
         metrics,
         persona,
         data: use
@@ -89,6 +90,7 @@ export async function buildDailyReport({ date, chatId, threadId, days, persona }
       return {
         date: dateForAi,
         chatId,
+        threadId,
         metrics,
         summary: parsedReport.summary,
         themes: parsedReport.themes,

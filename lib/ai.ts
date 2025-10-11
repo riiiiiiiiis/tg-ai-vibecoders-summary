@@ -1,4 +1,4 @@
-import { reportSchema, businessReportSchema, psychologyReportSchema, creativeReportSchema, dailySummaryReportSchema, type ParsedReport, type BusinessReport, type PsychologyReport, type CreativeReport, type DailySummaryReport, type AnyReport } from "./reportSchemas";
+import { reportSchema, businessReportSchema, psychologyReportSchema, creativeReportSchema, dailySummaryReportSchema, aiPsychologistReportSchema, type ParsedReport, type BusinessReport, type PsychologyReport, type CreativeReport, type DailySummaryReport, type AiPsychologistReport, type AnyReport } from "./reportSchemas";
 import type { OverviewResponse } from "./types";
 
 const VERBOSE = process.env.LLM_DEBUG_VERBOSE === "1";
@@ -318,7 +318,7 @@ export async function generateStructuredReport_OLD({ date, chatId, metrics }: Re
   }
 }
 
-export type PersonaType = 'curator' | 'business' | 'psychologist' | 'creative' | 'twitter' | 'reddit' | 'daily-summary';
+export type PersonaType = 'curator' | 'business' | 'psychologist' | 'ai-psychologist' | 'creative' | 'twitter' | 'reddit' | 'daily-summary';
 
 /**
  * @deprecated Используйте generateReport() вместо этой функции
@@ -345,6 +345,8 @@ function getPersonaSchema(persona: PersonaType) {
       return businessReportSchema;
     case 'psychologist':
       return psychologyReportSchema;
+    case 'ai-psychologist':
+      return aiPsychologistReportSchema;
     case 'creative':
       return creativeReportSchema;
     case 'daily-summary':
@@ -429,6 +431,37 @@ function getPersonaJsonSchema(persona: PersonaType) {
         emotional_patterns: _arrayField(_stringField(), 3, 6),
         group_dynamics: _arrayField(_stringField(), 3, 5)
       }, ["group_atmosphere", "psychological_archetypes", "emotional_patterns", "group_dynamics"]);
+      
+    case 'ai-psychologist':
+      return _objectField({
+        group_atmosphere: _stringField(50, 200),
+        psychological_archetypes: _arrayField(
+          _objectField({
+            name: _stringField(),
+            archetype: _stringField(),
+            influence: _stringField()
+          }, ["name", "archetype", "influence"]),
+          4, 8
+        ),
+        ai_model_personalities: _arrayField(
+          _objectField({
+            name: _stringField(),
+            ai_model: _enumField(['GPT-5', 'Claude Sonnet 4.5', 'Gemini 2.5 Pro', 'GLM-4', 'DeepSeek V3', 'Llama 3.3', 'Qwen 2.5', 'Mistral Large']),
+            confidence: _enumField(['high', 'medium', 'low']),
+            reasoning: _stringField(20, 300),
+            traditional_archetype: _stringField()
+          }, ["name", "ai_model", "confidence", "reasoning", "traditional_archetype"]),
+          4, 8
+        ),
+        emotional_patterns: _arrayField(_stringField(), 3, 6),
+        group_dynamics: _arrayField(_stringField(), 3, 5),
+        ai_model_distribution: _objectField({
+          dominant_model: _stringField(),
+          model_counts: { type: "object", additionalProperties: { type: "number" } },
+          diversity_score: _enumField(['high', 'medium', 'low']),
+          interaction_chemistry: _stringField(50, 300)
+        }, ["dominant_model", "model_counts", "diversity_score", "interaction_chemistry"])
+      }, ["group_atmosphere", "psychological_archetypes", "ai_model_personalities", "emotional_patterns", "group_dynamics", "ai_model_distribution"]);
       
     case 'creative':
       return _objectField({
@@ -658,6 +691,83 @@ function getPersonaPrompt(persona: PersonaType): string {
 - Используй профессиональные психологические термины
 - Возвращай ТОЛЬКО валидный JSON
 - Структура: {"group_atmosphere": "...", "psychological_archetypes": [{"name": "...", "archetype": "...", "influence": "..."},...], "emotional_patterns": [...], "group_dynamics": [...]}`
+,
+
+    'ai-psychologist': `Ты — психолог-инноватор, специализирующийся на сопоставлении психологических архетипов с личностями AI-моделей. Твоя уникальная способность — видеть, как коммуникационные паттерны людей напоминают стиль популярных AI-моделей.
+
+**Твоя специализация:**
+- Классический психологический анализ (архетипы, групповая динамика)
+- Сопоставление коммуникационных стилей с AI-моделями
+- Анализ влияния AI-персональностей на групповые процессы
+
+**AI-модели для сопоставления:**
+
+**GPT-5**: Сбалансированные, адаптивные ответы. Предоставляет всеобъемлющие ответы, сохраняет контекст, дипломатичен.
+
+**Claude Sonnet 4.5**: Вдумчивые, структурированные, аналитические ответы. Детальное обоснование, осмотрительность, нюансированные перспективы.
+
+**Gemini 2.5 Pro**: Креативное, мультимодальное мышление. Инновационные идеи, визуальное мышление, междоменные связи.
+
+**GLM-4**: Эффективные, практические, целенаправленные ответы. Прямые решения, минимальные детали, ориентация на действие.
+
+**DeepSeek V3**: Глубокий анализ, исследовательский подход. Подробный анализ, техническая точность, тщательное исследование.
+
+**Llama 3.3**: Ориентированные на сообщество, доступные ответы. Ясные объяснения, дружелюбный тон, коллаборативный подход.
+
+**Qwen 2.5**: Культурно осведомлённые, контекстуальные ответы. Понимание нюансов, адаптация к контексту, многоязычная чувствительность.
+
+**Mistral Large**: Технический эксперт, специализированные знания. Доменная экспертиза, точная терминология, детальные технические ответы.
+
+**Критерии сопоставления:**
+- Длина сообщений (краткие vs подробные)
+- Сложность словаря и использование технической терминологии
+- Частота инициации взаимодействий
+- Глубина и детализация ответов
+- Творческий vs аналитический баланс контента
+- Подход к решению проблем
+- Стиль обмена информацией
+
+**Твоя задача:**
+Создать комплексный психологический анализ с AI-сопоставлением в формате JSON с 6 секциями:
+
+1. **group_atmosphere** (строка 50-200 символов):
+   - Общая эмоциональная атмосфера группы
+
+2. **psychological_archetypes** (массив 4-8 объектов):
+   - Каждый объект: {"name": "имя", "archetype": "психотип", "influence": "влияние"}
+   - Традиционные психологические архетипы
+
+3. **ai_model_personalities** (массив 4-8 объектов):
+   - Каждый объект: {
+     "name": "имя участника",
+     "ai_model": "GPT-5 | Claude Sonnet 4.5 | Gemini 2.5 Pro | GLM-4 | DeepSeek V3 | Llama 3.3 | Qwen 2.5 | Mistral Large",
+     "confidence": "high | medium | low",
+     "reasoning": "конкретные поведенческие доказательства (20-300 символов)",
+     "traditional_archetype": "перекрестная ссылка на психологический тип"
+   }
+   - Анализируй паттерны сообщений, стиль взаимодействия, глубину ответов
+   - Высокая уверенность: множественные сильные поведенческие индикаторы
+   - Средняя уверенность: некоторые индикаторы совпадают, другие неясны
+   - Низкая уверенность: слабые или смешанные сигналы
+
+4. **emotional_patterns** (массив 3-6 элементов):
+   - Ключевые эмоциональные паттерны в группе
+
+5. **group_dynamics** (массив 3-5 элементов):
+   - Механизмы групповых процессов
+
+6. **ai_model_distribution** (объект):
+   - "dominant_model": "наиболее представленная AI-модель",
+   - "model_counts": {"GPT-5": количество, "Claude Sonnet 4.5": количество, ...},
+   - "diversity_score": "high | medium | low" (насколько разнообразны AI-личности),
+   - "interaction_chemistry": "описание динамики взаимодействия разных AI-типов (50-300 символов)"
+
+**Критически важно:**
+- Основывай сопоставления на НАБЛЮДАЕМЫЕ паттерны поведения
+- Предоставляй конкретные доказательства для каждого сопоставления
+- Кросс-референции между AI-моделью и традиционным архетипом
+- Возвращай ТОЛЬКО валидный JSON
+- Структура должна содержать ВСЕ 6 полей`
 ,
 
     creative: `Ты — креативный директор и тренд-хантер, который специализируется на создании вирусных контент-идей. Никакой аналитики — только чистое творчество.

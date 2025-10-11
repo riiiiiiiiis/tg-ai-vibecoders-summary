@@ -65,6 +65,12 @@ const PERSONAS = [
     color: '#dc2626'
   },
   { 
+    key: 'ai-psychologist' as PersonaType, 
+    title: '🤖 AI-Психолог', 
+    description: 'Психоанализ + AI модели личности',
+    color: '#8b5cf6'
+  },
+  { 
     key: 'creative' as PersonaType, 
     title: '🚀 Креативный маркетолог', 
     description: 'Вирусный контент',
@@ -460,6 +466,230 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+        
+        {data.emotional_patterns && data.emotional_patterns.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              💡 Эмоциональные паттерны
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.emotional_patterns.map((pattern: string, index: number) => (
+                <li key={`pattern-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {pattern}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.group_dynamics && data.group_dynamics.length > 0 && (
+          <div>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              ⚙️ Групповая динамика
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.group_dynamics.map((dynamic: string, index: number) => (
+                <li key={`dynamic-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
+                  {dynamic}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </>
+    );
+  }
+  
+  if (persona === 'ai-psychologist') {
+    return (
+      <>
+        {data.group_atmosphere && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🌊 Групповая атмосфера
+            </h4>
+            <p style={{ 
+              lineHeight: '1.6', 
+              margin: 0,
+              color: '#374151',
+              fontStyle: 'italic'
+            }}>
+              {data.group_atmosphere}
+            </p>
+          </div>
+        )}
+        
+        {data.psychological_archetypes && data.psychological_archetypes.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🎭 Психологические архетипы
+            </h4>
+            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
+              {data.psychological_archetypes.map((archetype: {name: string, archetype: string, influence: string}, index: number) => (
+                <li key={`archetype-${index}`} style={{ marginBottom: '0.75rem', color: '#374151' }}>
+                  <strong style={{ color: color }}>{archetype.name}</strong> 
+                  <em style={{ color: '#64748b' }}>({archetype.archetype})</em>
+                  <br />
+                  <span style={{ fontSize: '0.85rem' }}>{archetype.influence}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        
+        {data.ai_model_personalities && data.ai_model_personalities.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              🤖 AI-модели личности
+            </h4>
+            <div style={{ display: 'grid', gap: '0.75rem' }}>
+              {data.ai_model_personalities.map((personality: {name: string, ai_model: string, confidence: string, reasoning: string, traditional_archetype: string}, index: number) => (
+                <div key={`ai-personality-${index}`} style={{ 
+                  padding: '0.75rem',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '8px',
+                  borderLeft: `4px solid ${color}`
+                }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <strong style={{ color: color, fontSize: '0.95rem' }}>{personality.name}</strong>
+                    <span style={{ 
+                      marginLeft: '0.5rem',
+                      padding: '0.2rem 0.5rem',
+                      backgroundColor: personality.ai_model === 'GPT-5' ? '#10b981' :
+                                      personality.ai_model === 'Claude Sonnet 4.5' ? '#f59e0b' :
+                                      personality.ai_model === 'Gemini 2.5 Pro' ? '#3b82f6' :
+                                      personality.ai_model === 'GLM-4' ? '#ef4444' :
+                                      personality.ai_model === 'DeepSeek V3' ? '#6366f1' :
+                                      personality.ai_model === 'Llama 3.3' ? '#8b5cf6' :
+                                      personality.ai_model === 'Qwen 2.5' ? '#06b6d4' :
+                                      personality.ai_model === 'Mistral Large' ? '#84cc16' : '#64748b',
+                      color: 'white',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600'
+                    }}>
+                      {personality.ai_model}
+                    </span>
+                    <span style={{ 
+                      marginLeft: '0.5rem',
+                      padding: '0.2rem 0.5rem',
+                      backgroundColor: personality.confidence === 'high' ? '#10b981' :
+                                      personality.confidence === 'medium' ? '#f59e0b' : '#ef4444',
+                      color: 'white',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: '500'
+                    }}>
+                      {personality.confidence === 'high' ? '🎯 высокая' : 
+                       personality.confidence === 'medium' ? '🤔 средняя' : '❓ низкая'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.25rem' }}>
+                    Психотип: <em>{personality.traditional_archetype}</em>
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: '#374151', lineHeight: '1.4' }}>
+                    {personality.reasoning}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {data.ai_model_distribution && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <h4 style={{ 
+              margin: '0 0 0.75rem 0', 
+              color: color,
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              📊 Распределение AI-моделей
+            </h4>
+            <div style={{ 
+              padding: '1rem',
+              backgroundColor: '#f1f5f9',
+              borderRadius: '8px',
+              border: `2px solid ${color}20`
+            }}>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <strong style={{ color: color }}>Доминирующая модель:</strong> {data.ai_model_distribution.dominant_model}
+              </div>
+              <div style={{ marginBottom: '0.75rem' }}>
+                <strong style={{ color: color }}>Разнообразие:</strong> 
+                <span style={{ 
+                  marginLeft: '0.5rem',
+                  padding: '0.2rem 0.5rem',
+                  backgroundColor: data.ai_model_distribution.diversity_score === 'high' ? '#10b981' :
+                                  data.ai_model_distribution.diversity_score === 'medium' ? '#f59e0b' : '#ef4444',
+                  color: 'white',
+                  borderRadius: '4px',
+                  fontSize: '0.8rem',
+                  fontWeight: '500'
+                }}>
+                  {data.ai_model_distribution.diversity_score === 'high' ? '🌈 высокое' : 
+                   data.ai_model_distribution.diversity_score === 'medium' ? '🔄 среднее' : '📍 низкое'}
+                </span>
+              </div>
+              {data.ai_model_distribution.model_counts && (
+                <div style={{ marginBottom: '0.75rem' }}>
+                  <strong style={{ color: color }}>Распределение:</strong>
+                  <div style={{ marginTop: '0.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    {Object.entries(data.ai_model_distribution.model_counts).map(([model, count]) => (
+                      <span key={model} style={{ 
+                        padding: '0.25rem 0.5rem',
+                        backgroundColor: '#ffffff',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        fontSize: '0.8rem',
+                        color: '#374151'
+                      }}>
+                        {model}: {String(count)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div>
+                <strong style={{ color: color }}>Химия взаимодействий:</strong>
+                <div style={{ 
+                  marginTop: '0.5rem',
+                  fontSize: '0.9rem',
+                  color: '#374151',
+                  lineHeight: '1.5',
+                  fontStyle: 'italic'
+                }}>
+                  {data.ai_model_distribution.interaction_chemistry}
+                </div>
+              </div>
+            </div>
           </div>
         )}
         
