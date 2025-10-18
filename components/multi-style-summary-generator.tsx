@@ -60,8 +60,8 @@ const PERSONAS = [
   },
   { 
     key: 'psychologist' as PersonaType, 
-    title: '🧠 Психолог сообществ', 
-    description: 'Групповая динамика',
+    title: '🤖 AI-Детектив', 
+    description: 'Угадай модель участника (шуточный)',
     color: '#dc2626'
   },
   { 
@@ -77,6 +77,50 @@ const PERSONAS = [
     color: '#7c3aed'
   },
 ];
+
+// Вспомогательная функция для цветов моделей
+function getModelColor(model: string): string {
+  const colorMap: Record<string, string> = {
+    // OpenAI - зелёные оттенки
+    'GPT-5 Pro': '#10b981',
+    'GPT-5-codex': '#059669',
+    'o3': '#047857',
+    'o3-mini': '#065f46',
+    'o4-mini': '#064e3b',
+    'GPT-4o': '#10b981',
+    // Anthropic - оранжевые оттенки
+    'Claude Sonnet 4': '#f59e0b',
+    'Claude Sonnet 4.5': '#d97706',
+    'Claude Opus 4': '#b45309',
+    'Claude Haiku 4.5': '#92400e',
+    // Google - синие оттенки
+    'Gemini 2.5 Pro': '#3b82f6',
+    'Gemini 2.5 Flash': '#2563eb',
+    'Gemini 2.5 Flash-Lite': '#1d4ed8',
+    // Meta - фиолетовые оттенки
+    'Llama 4 Scout': '#8b5cf6',
+    'Llama 4 Maverick': '#7c3aed',
+    'Llama 3.3 70B': '#6d28d9',
+    // DeepSeek - индиго оттенки
+    'DeepSeek V3': '#6366f1',
+    'DeepSeek V3.2-Exp': '#4f46e5',
+    'DeepSeek R1': '#4338ca',
+    // Qwen - голубые оттенки
+    'Qwen3': '#06b6d4',
+    'Qwen3 Max': '#0891b2',
+    'Qwen3 235B-A22B': '#0e7490',
+    // Mistral - лаймовые оттенки
+    'Mistral Large 2': '#84cc16',
+    'Mistral Medium 3': '#65a30d',
+    'Codestral 25': '#4d7c0f',
+    // Others
+    'GLM-4.5': '#ef4444',
+    'GLM-4.6': '#dc2626',
+    'Grok 3': '#f97316',
+    'Kimi K2': '#14b8a6'
+  };
+  return colorMap[model] || '#64748b';
+}
 
 // Функция для рендера разных типов контента в зависимости от персоны
 function renderReportContent(data: any, persona: PersonaType, color: string) {
@@ -425,7 +469,7 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
   if (persona === 'psychologist') {
     return (
       <>
-        {data.group_atmosphere && (
+        {data.intro && (
           <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ 
               margin: '0 0 0.75rem 0', 
@@ -433,7 +477,7 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
               fontSize: '1rem',
               fontWeight: '600'
             }}>
-              🌡️ Атмосфера группы
+              🤖 Введение
             </h4>
             <p style={{ 
               lineHeight: '1.6', 
@@ -441,12 +485,12 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
               color: '#374151',
               fontStyle: 'italic'
             }}>
-              {data.group_atmosphere}
+              {data.intro}
             </p>
           </div>
         )}
         
-        {data.psychological_archetypes && data.psychological_archetypes.length > 0 && (
+        {data.participants && data.participants.length > 0 && (
           <div style={{ marginBottom: '1.5rem' }}>
             <h4 style={{ 
               margin: '0 0 0.75rem 0', 
@@ -454,60 +498,64 @@ function renderReportContent(data: any, persona: PersonaType, color: string) {
               fontSize: '1rem',
               fontWeight: '600'
             }}>
-              🎭 Психологические архетипы
+              🎭 Модельные диагнозы
             </h4>
-            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
-              {data.psychological_archetypes.map((archetype: {name: string, archetype: string, influence: string}, index: number) => (
-                <li key={`archetype-${index}`} style={{ marginBottom: '0.75rem', color: '#374151' }}>
-                  <strong style={{ color: color }}>{archetype.name}</strong> 
-                  <em style={{ color: '#64748b' }}>({archetype.archetype})</em>
-                  <br />
-                  <span style={{ fontSize: '0.85rem' }}>{archetype.influence}</span>
-                </li>
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {data.participants.map((participant: {
+                name: string, 
+                model: string, 
+                confidence: string, 
+                reasoning: string
+              }, index: number) => (
+                <div key={`participant-${index}`} style={{ 
+                  padding: '1rem',
+                  backgroundColor: '#f8fafc',
+                  borderRadius: '8px',
+                  borderLeft: `4px solid ${color}`
+                }}>
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <strong style={{ color: color, fontSize: '1rem' }}>
+                      {participant.name}
+                    </strong>
+                    <span style={{ 
+                      marginLeft: '0.75rem',
+                      padding: '0.25rem 0.6rem',
+                      backgroundColor: getModelColor(participant.model),
+                      color: 'white',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}>
+                      {participant.model}
+                    </span>
+                    <span style={{ 
+                      marginLeft: '0.5rem',
+                      padding: '0.2rem 0.5rem',
+                      backgroundColor: participant.confidence === 'high' ? '#10b981' :
+                                      participant.confidence === 'medium' ? '#f59e0b' : '#ef4444',
+                      color: 'white',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: '500'
+                    }}>
+                      {participant.confidence === 'high' ? '🎯 высокая' : 
+                       participant.confidence === 'medium' ? '🤔 средняя' : '❓ низкая'}
+                    </span>
+                  </div>
+                  <div style={{ 
+                    fontSize: '0.9rem', 
+                    color: '#374151', 
+                    lineHeight: '1.5' 
+                  }}>
+                    {participant.reasoning}
+                  </div>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         )}
         
-        {data.emotional_patterns && data.emotional_patterns.length > 0 && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h4 style={{ 
-              margin: '0 0 0.75rem 0', 
-              color: color,
-              fontSize: '1rem',
-              fontWeight: '600'
-            }}>
-              💡 Эмоциональные паттерны
-            </h4>
-            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
-              {data.emotional_patterns.map((pattern: string, index: number) => (
-                <li key={`pattern-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
-                  {pattern}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        
-        {data.group_dynamics && data.group_dynamics.length > 0 && (
-          <div>
-            <h4 style={{ 
-              margin: '0 0 0.75rem 0', 
-              color: color,
-              fontSize: '1rem',
-              fontWeight: '600'
-            }}>
-              ⚙️ Групповая динамика
-            </h4>
-            <ul style={{ margin: 0, paddingLeft: '1rem', lineHeight: '1.5' }}>
-              {data.group_dynamics.map((dynamic: string, index: number) => (
-                <li key={`dynamic-${index}`} style={{ marginBottom: '0.5rem', color: '#374151' }}>
-                  {dynamic}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+
       </>
     );
   }
@@ -1028,7 +1076,7 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
         body: JSON.stringify({
           date,
           persona,
-          ...reportData
+          data: reportData
         }),
       });
       const result = await response.json();
@@ -1086,7 +1134,7 @@ export function MultiStyleSummaryGenerator({ chatId, threadId, date }: MultiStyl
         body: JSON.stringify({
           date,
           persona,
-          ...reportData
+          data: reportData
         }),
       });
       const result = await response.json();

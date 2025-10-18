@@ -1,5 +1,6 @@
 import { getPool } from "./db";
 import type { OverviewResponse, SeriesPoint, TopUser, ForumTopic } from "./types";
+import { buildTimeRangeConditions, buildChatConditions, combineConditions, buildUserLabel } from "./db/builders";
 
 type OverviewParams = {
   chatId?: string;
@@ -11,30 +12,14 @@ type OverviewParams = {
 
 export async function fetchOverview({ chatId, threadId, window = 1, from, to }: OverviewParams): Promise<OverviewResponse> {
   const pool = getPool();
-  const conditions: string[] = [];
-  const params: Array<string | Date | number> = [];
-
-  if (from && to) {
-    conditions.push(`sent_at >= $${params.length + 1}`);
-    params.push(from);
-    conditions.push(`sent_at < $${params.length + 1}`);
-    params.push(to);
-  } else {
-    conditions.push(`sent_at >= NOW() - $${params.length + 1}::interval`);
-    params.push(`${window} days`);
-  }
-
-  if (chatId) {
-    conditions.push(`chat_id = $${params.length + 1}`);
-    params.push(chatId);
-  }
-
-  if (threadId) {
-    conditions.push(`message_thread_id = $${params.length + 1}`);
-    params.push(threadId);
-  }
-
-  const whereClause = conditions.join(" AND ");
+  
+  // Use shared query builders
+  const timeConditions = buildTimeRangeConditions(from, to, window);
+  const chatConditions = buildChatConditions(chatId, threadId, timeConditions.params);
+  const combined = combineConditions(timeConditions, chatConditions);
+  
+  const whereClause = combined.conditions.join(" AND ");
+  const params = combined.params;
 
   const metricsResult = await pool.query<{
     total_messages: string;
@@ -115,93 +100,40 @@ export async function fetchOverview({ chatId, threadId, window = 1, from, to }: 
   };
 }
 
-export async function fetchMessagesText({
-  chatId,
-  threadId,
-  from,
-  to,
-  limit = 5000
-}: {
-  chatId?: string;
-  threadId?: string;
-  from: Date;
-  to: Date;
-  limit?: number;
-}): Promise<string[]> {
-  const pool = getPool();
-  console.log("[DB] fetchMessagesText params", {
-    chatId,
-    from: from.toISOString(),
-    to: to.toISOString(),
-    limit
-  });
-  const params: Array<string | Date | number> = [from, to];
-  const where: string[] = [
-    "m.sent_at >= $1",
-    "m.sent_at < $2",
-    "COALESCE(m.text, '') <> ''"
-  ];
 
-  if (chatId) {
-    where.push(`m.chat_id = $${params.length + 1}`);
-    params.push(chatId);
-  }
-
-  if (threadId) {
-    where.push(`m.message_thread_id = $${params.length + 1}`);
-    params.push(threadId);
-  }
-
-  const sql = `
-    SELECT m.text
-    FROM messages m
-    WHERE ${where.join(" AND ")}
-    ORDER BY m.sent_at ASC
-    LIMIT $${params.length + 1}
-  `;
-  params.push(limit);
-
-  const { rows } = await pool.query<{ text: string }>(sql, params);
-  return rows.map((r) => r.text);
-}
 
 export async function fetchMessagesWithAuthors({
   chatId,
   threadId,
   from,
   to,
-  limit = 5000
+  limit = 5000,
+  preferUsername = false
 }: {
   chatId?: string;
   threadId?: string;
   from: Date;
   to: Date;
   limit?: number;
+  preferUsername?: boolean;
 }): Promise<Array<{ timestamp: Date; label: string; text: string }>> {
   const pool = getPool();
   console.log("[DB] fetchMessagesWithAuthors params", {
     chatId,
+    preferUsername,
     from: from.toISOString(),
     to: to.toISOString(),
     limit
   });
-  const params: Array<string | Date | number> = [from, to];
-  const where: string[] = [
-    "m.sent_at >= $1",
-    "m.sent_at < $2",
-    "COALESCE(m.text, '') <> ''"
-  ];
-
-  if (chatId) {
-    where.push(`m.chat_id = $${params.length + 1}`);
-    params.push(chatId);
-  }
-
-  if (threadId) {
-    where.push(`m.message_thread_id = $${params.length + 1}`);
-    params.push(threadId);
-  }
-
+  
+  // Use shared query builders
+  const timeConditions = buildTimeRangeConditions(from, to);
+  const chatConditions = buildChatConditions(chatId, threadId, timeConditions.params);
+  const combined = combineConditions(timeConditions, chatConditions);
+  
+  // Add non-empty text condition
+  combined.conditions.push("COALESCE(m.text, '') <> ''");
+  
   const sql = `
     SELECT m.sent_at, m.text,
            COALESCE(u.first_name, '') AS first_name,
@@ -209,11 +141,11 @@ export async function fetchMessagesWithAuthors({
            u.username
     FROM messages m
     LEFT JOIN users u ON u.id = m.user_id
-    WHERE ${where.join(" AND ")}
+    WHERE ${combined.conditions.join(" AND ")}
     ORDER BY m.sent_at ASC
-    LIMIT $${params.length + 1}
+    LIMIT $${combined.params.length + 1}
   `;
-  params.push(limit);
+  combined.params.push(limit);
 
   const { rows } = await pool.query<{
     sent_at: Date;
@@ -221,11 +153,16 @@ export async function fetchMessagesWithAuthors({
     first_name: string | null;
     last_name: string | null;
     username: string | null;
-  }>(sql, params);
+  }>(sql, combined.params);
+
+  // Import buildUserLabelForAI to use when preferUsername is true
+  const { buildUserLabelForAI } = await import("./db/builders");
 
   return rows.map((r) => ({
     timestamp: r.sent_at,
-    label: buildUserLabel(r.first_name, r.last_name, r.username),
+    label: preferUsername 
+      ? buildUserLabelForAI(r.first_name, r.last_name, r.username)
+      : buildUserLabel(r.first_name, r.last_name, r.username),
     text: r.text
   }));
 }
@@ -246,16 +183,13 @@ export async function fetchForumTopics({
   const pool = getPool();
   
   try {
-    const params: Array<string | number> = [`${window} days`];
-    const where: string[] = [
-      "sent_at >= NOW() - $1::interval",
-      "message_thread_id IS NOT NULL"
-    ];
-
-    if (chatId) {
-      where.push(`chat_id = $${params.length + 1}`);
-      params.push(chatId);
-    }
+    // Use shared query builders
+    const timeConditions = buildTimeRangeConditions(undefined, undefined, window);
+    const chatConditions = buildChatConditions(chatId, undefined, timeConditions.params);
+    const combined = combineConditions(timeConditions, chatConditions);
+    
+    // Add thread ID condition
+    combined.conditions.push("message_thread_id IS NOT NULL");
 
     const sql = `
       SELECT 
@@ -267,7 +201,7 @@ export async function fetchForumTopics({
          AND m2.chat_id = m.chat_id
          ORDER BY sent_at ASC LIMIT 1) as topic_name
       FROM messages m
-      WHERE ${where.join(" AND ")}
+      WHERE ${combined.conditions.join(" AND ")}
       GROUP BY message_thread_id, chat_id
       ORDER BY message_count DESC
       LIMIT 50
@@ -278,7 +212,7 @@ export async function fetchForumTopics({
       message_count: string;
       last_message_at: Date;
       topic_name: string | null;
-    }>(sql, params);
+    }>(sql, combined.params);
 
     return rows.map((row) => ({
       threadId: row.message_thread_id,
@@ -317,23 +251,14 @@ export async function fetchMessagesWithLinks({
     limit
   });
   
-  const params: Array<string | Date | number> = [from, to];
-  const where: string[] = [
-    "m.sent_at >= $1",
-    "m.sent_at < $2",
-    "COALESCE(m.text, '') <> ''",
-    "m.text ~* 'https?://'"
-  ];
-
-  if (chatId) {
-    where.push(`m.chat_id = $${params.length + 1}`);
-    params.push(chatId);
-  }
-
-  if (threadId) {
-    where.push(`m.message_thread_id = $${params.length + 1}`);
-    params.push(threadId);
-  }
+  // Use shared query builders
+  const timeConditions = buildTimeRangeConditions(from, to);
+  const chatConditions = buildChatConditions(chatId, threadId, timeConditions.params);
+  const combined = combineConditions(timeConditions, chatConditions);
+  
+  // Add non-empty text and link conditions
+  combined.conditions.push("COALESCE(m.text, '') <> ''");
+  combined.conditions.push("m.text ~* 'https?://'");
 
   const sql = `
     SELECT m.sent_at, m.text,
@@ -342,11 +267,11 @@ export async function fetchMessagesWithLinks({
            u.username
     FROM messages m
     LEFT JOIN users u ON u.id = m.user_id
-    WHERE ${where.join(" AND ")}
+    WHERE ${combined.conditions.join(" AND ")}
     ORDER BY m.sent_at ASC
-    LIMIT $${params.length + 1}
+    LIMIT $${combined.params.length + 1}
   `;
-  params.push(limit);
+  combined.params.push(limit);
 
   const { rows } = await pool.query<{
     sent_at: Date;
@@ -354,7 +279,7 @@ export async function fetchMessagesWithLinks({
     first_name: string | null;
     last_name: string | null;
     username: string | null;
-  }>(sql, params);
+  }>(sql, combined.params);
 
   return rows.map((r) => {
     // Извлекаем все ссылки из текста сообщения
@@ -370,13 +295,4 @@ export async function fetchMessagesWithLinks({
   });
 }
 
-function buildUserLabel(firstName: string | null, lastName: string | null, username: string | null): string {
-  const name = [firstName, lastName]
-    .map((part) => part?.trim())
-    .filter(Boolean)
-    .join(" ");
 
-  if (name) return name;
-  if (username) return `@${username}`;
-  return "Неизвестный";
-}

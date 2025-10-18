@@ -54,7 +54,7 @@ export function ForumTopics({ chatId, currentThreadId, days = 1 }: ForumTopicsPr
 
     const path = days === 7 ? "/week" : "/";
     const url = params.toString() ? `${path}?${params.toString()}` : path;
-    router.push(url);
+    router.push(url as any);
   };
 
   if (loading) {

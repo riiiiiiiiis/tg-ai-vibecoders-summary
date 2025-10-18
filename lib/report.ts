@@ -18,7 +18,14 @@ export async function buildDailyReport({ date, chatId, threadId, days, persona }
   
   try {
     console.log("[Report] range", { from: from.toISOString(), to: to.toISOString(), chatId, threadId });
-    const entries = await fetchMessagesWithAuthors({ chatId, threadId, from, to, limit: 5000 });
+    const entries = await fetchMessagesWithAuthors({ 
+      chatId, 
+      threadId, 
+      from, 
+      to, 
+      limit: 5000,
+      preferUsername: persona === 'psychologist' // Use @username for psychologist persona
+    });
     console.log("[Report] fetched messages", { count: entries.length, limit: 5000 });
     const maxChars = Number(process.env.LLM_TEXT_CHAR_BUDGET ?? 80000);
     const raw = entries

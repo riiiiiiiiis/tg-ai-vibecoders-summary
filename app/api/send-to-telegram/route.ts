@@ -2,40 +2,37 @@ import { NextResponse } from "next/server";
 import { buildDailyReport } from "@/lib/report";
 import { validateTelegramConfig, formatSummaryForTelegram, sendMessageToChat } from "@/lib/telegram";
 import { getCurrentLocalDate } from "@/lib/date-utils";
+import { parseReportParams, buildErrorResponse } from "@/lib/api/utils";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const { searchParams } = new URL(request.url);
-  const date = searchParams.get("date");
-  const chatId = searchParams.get("chat_id") ?? undefined;
-  const threadId = searchParams.get("thread_id") ?? undefined;
-  const daysParam = Number(searchParams.get("days") ?? "");
-  const days = daysParam === 1 || daysParam === 7 ? (daysParam as 1 | 7) : 1;
   const preview = searchParams.get("preview") === "true";
-  const persona = searchParams.get("persona") || undefined;
-
-  console.log(`[API] /api/send-to-telegram`, { date, chatId: chatId ? "***" : undefined, days, preview, persona });
-
-  // Validate Telegram credentials
-  const configValidation = validateTelegramConfig();
-  if (!configValidation.valid) {
-    console.error("[Telegram] Configuration error:", configValidation.error);
-    return NextResponse.json(
-      {
-        ok: false,
-        error: configValidation.error
-      },
-      { status: 500 }
-    );
-  }
-
-  const telegramChatId = process.env.TELEGRAM_CHAT_ID!;
-  const telegramThreadId = process.env.TELEGRAM_THREAD_ID;
-
-  console.log("[Telegram] Credentials validated");
-
+  
   try {
+    const { date, chatId, threadId, days, persona } = parseReportParams(searchParams);
+    
+    console.log(`[API] /api/send-to-telegram`, { date, chatId: chatId ? "***" : undefined, days, preview, persona });
+
+    // Validate Telegram credentials
+    const configValidation = validateTelegramConfig();
+    if (!configValidation.valid) {
+      console.error("[Telegram] Configuration error:", configValidation.error);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: configValidation.error
+        },
+        { status: 500 }
+      );
+    }
+
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID!;
+    const telegramThreadId = process.env.TELEGRAM_THREAD_ID;
+
+    console.log("[Telegram] Credentials validated");
+
     let report;
 
     // Check if report is provided in request body
@@ -66,13 +63,13 @@ export async function POST(request: Request) {
       } else {
         // Если формат не распознан, генерируем заново
         console.log("[Telegram] Starting report generation...");
-        report = await buildDailyReport({ date: date ?? undefined, days, chatId, threadId, persona: persona as any });
+        report = await buildDailyReport({ date, days, chatId, threadId, persona });
         console.log("[Telegram] Report generated successfully");
       }
     } else {
       // Generate report
       console.log("[Telegram] Starting report generation...");
-      report = await buildDailyReport({ date: date ?? undefined, days, chatId, threadId, persona: persona as any });
+      report = await buildDailyReport({ date, days, chatId, threadId, persona });
       console.log("[Telegram] Report generated successfully");
     }
 
@@ -120,31 +117,7 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error(`[Telegram] ERROR:`, {
-      name: error instanceof Error ? error.name : "Unknown",
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    });
-
-    let userFriendlyMessage = "Неизвестная ошибка при отправке в Telegram";
-
-    if (error instanceof Error) {
-      if (error.message.includes("Telegram API error")) {
-        userFriendlyMessage = `Ошибка Telegram API: ${error.message}`;
-      } else if (error.message.includes("fetch")) {
-        userFriendlyMessage = "Не удалось подключиться к Telegram API. Проверьте интернет-соединение.";
-      } else if (error.message.includes("timeout")) {
-        userFriendlyMessage = "Превышено время ожидания ответа от Telegram API.";
-      } else {
-        userFriendlyMessage = error.message;
-      }
-    }
-
-    return NextResponse.json({
-      ok: false,
-      error: userFriendlyMessage,
-      details: error instanceof Error ? error.message : String(error)
-    }, { status: 500 });
+    return buildErrorResponse(error, '/api/send-to-telegram');
   }
 }
 

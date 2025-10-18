@@ -208,22 +208,34 @@ function formatPersonaReport(report: { date: string; persona?: string; data: any
     lines.push(..._buildNumberedList('📈', 'Стратегии дохода', data.revenue_strategies));
     lines.push(..._buildBulletedList('🔥', 'ROI-инсайты', data.roi_insights));
   } else if (persona === 'psychologist') {
-    lines.push(..._buildTextSection('🌡️', 'Атмосфера группы', data.group_atmosphere));
+    // NEW FORMAT: Шуточный AI-детектив
+    lines.push(..._buildTextSection('🤖', 'Введение', data.intro));
     
-    // Специальное форматирование для архетипов
-    if (data.psychological_archetypes?.length > 0) {
-      lines.push('🎭 <b>Психологические архетипы</b>');
+    // Participants with model detection
+    if (data.participants?.length > 0) {
+      lines.push('🎭 <b>Модельные диагнозы</b>');
       lines.push('');
-      data.psychological_archetypes.forEach((archetype: any, idx: number) => {
-        lines.push(`${idx + 1}️⃣ <b>${escapeHTML(archetype.name)}</b> <i>(${escapeHTML(archetype.archetype)})</i>`);
-        lines.push(`   → ${escapeHTML(archetype.influence)}`);
+      
+      data.participants.forEach((participant: any, idx: number) => {
+        const confidenceEmoji = participant.confidence === 'high' ? '🎯' :
+                               participant.confidence === 'medium' ? '🤔' : '❓';
+        
+        // Format name - use bold for all names (Telegram will auto-link @username)
+        const nameFormatted = `<b>${escapeHTML(participant.name)}</b>`;
+        
+        lines.push(`${idx + 1}️⃣ ${nameFormatted}`);
+        lines.push(`   <code>${escapeHTML(participant.model)}</code> ${confidenceEmoji}`);
+        lines.push(`   <i>${escapeHTML(participant.reasoning)}</i>`);
         lines.push('');
       });
+      
       lines.push(..._buildDivider());
     }
     
-    lines.push(..._buildBulletedList('💡', 'Эмоциональные паттерны', data.emotional_patterns));
-    lines.push(..._buildBulletedList('⚙️', 'Групповая динамика', data.group_dynamics));
+    // Summary is optional, only add if present
+    if (data.summary) {
+      lines.push(..._buildTextSection('📊', 'Общий вывод', data.summary));
+    }
   } else if (persona === 'creative') {
     lines.push(..._buildTextSection('🌡️', 'Креативная температура', data.creative_temperature));
     lines.push(..._buildNumberedList('🚀', 'Вирусные концепции', data.viral_concepts));
@@ -261,11 +273,12 @@ function formatDailySummaryReport(report: { date: string; data: any }): string {
     });
     
     sortedEvents.forEach((event: any, idx: number) => {
-      const importanceEmoji = {
+      const importanceMap: Record<string, string> = {
         high: '🔥',
         medium: '🔶',
         low: '🟡'
-      }[event.importance] || '🔶';
+      };
+      const importanceEmoji = importanceMap[event.importance as string] || '🔶';
       
       lines.push(`${importanceEmoji} <b>${escapeHTML(event.time)}</b>`);
       lines.push(`   ${escapeHTML(event.event)}`);
